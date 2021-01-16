@@ -1,0 +1,236 @@
+<template>
+	<view class="feed-cell-item">
+		<view class="content">
+			<text v-if="options.content" class="title">{{options.content}}</text>
+			<view class="img-group" v-if="options.feedbackAlbum && options.feedbackAlbum.length">
+				<image mode="aspectFill" class="img" v-for="(item, index) in options.feedbackAlbum" :key="item.image" :src="item.image"></image>
+			</view>
+			<view class="footer">
+				<view class="time-view">
+					<text class="time">{{options.time}}</text>
+				</view>
+				<view class="footer-right">
+					<view class="admire-group" @click.stop.prevent="admireHandel">
+						<image v-if="options.isAdmire" class="admire-icon icon" src="/static/icons/index/admire.png"></image>
+						<image v-else class="admire-icon icon" src="/static/icons/index/no-admire.png"></image>
+						<text v-if="options.counts > 0" class="admire-num num">{{options.counts}}</text>
+					</view>
+					<view class="comment-group" @click.stop.prevent="showInput">
+						<image class="comment-icon icon" src="/static/icons/index/msg.png"></image>
+						<text v-if="options.feeComment && options.feeComment.length > 0" class="admire-num num">{{options.feeComment.length}}</text>
+					</view>
+				</view>
+			</view>
+		</view>
+		<chat-input :bottom="-3000" @pageUp="pageUp" @focus="onFocus" :focus="focus" @blur="blur" @confirm="confirm"></chat-input>
+	</view>
+</template>
+
+<script>
+	import {comment_on} from "@/common/http.nvue.api.js"
+	import chatInput from "@/components/chat-input/input.nvue"
+	import { mapGetters, mapMutations } from 'vuex'
+	import {
+		admire_check
+	} from "@/common/http.nvue.api.js"
+	export default {
+		components:{
+			chatInput
+		},
+		props: {
+			options: {
+				type: Object,
+				default: function(e) {
+					return {}
+				}
+			},
+			admire0Url:{
+				type:String,
+				default:".././../static/icons/index/no-admire.png"
+			},
+			admire1Url:{
+				type:String,
+				default:"../../../static/icons/index/admire.png"
+			},
+			commentUrl:{
+				type:String,
+				default:"../../../static/icons/index/msg.png"
+			},
+			index:{
+				type:Number|String,
+				default:0
+			},
+			islast:{
+				type:Boolean,
+				default:false
+			}
+		},
+		computed:{
+			...mapGetters([
+				'userInfo'
+			])
+		},
+		created() {
+			uni.$on('hidekeyBard', this.blur)
+		},
+		beforeDestroy() {
+			uni.$off('hidekeyBard',this.blur)
+		},
+		data(){
+			return {
+				focus:false,
+				value:"",
+				icons:{
+					express:"../../../static/icons/express.png",
+					photo:"../../../static/icons/photo.png"
+				}
+			}
+		},
+		methods: {
+			...mapMutations([
+			]),
+			toInfo(){
+				this.$emit("toInfo")
+			},
+			showInput(e){
+				this.focus = true
+				e.stopPropagation()
+			},
+			blur(){
+				this.focus = false
+				uni.hideKeyboard()
+			},
+			confirm(e){
+				// uni.showToast({
+				// 	title:e.detail.value
+				// })
+				if(e.detail.value.trim() == "") return
+				uni.showLoading({
+					title:'发布中...'
+				})
+				comment_on({
+					content:e.detail.value,
+					feedid:this.options.id,
+					userid:this.userInfo.id
+				}).then(res=>{
+					console.log(res, '发布评论')
+					uni.hideLoading()
+					if(res.code == 0){
+						let param = {
+							userid:this.userInfo.id,
+							nickname:this.userInfo.nickname,
+							avatarimg:this.userInfo.avatarimg,
+							addtime:"",
+							content:e.detail.value,
+							pid:this.options.id,
+							...res.data
+						}
+						uni.$emit("feedCommentOn",param)
+					} else {
+						uni.showToast({
+							title:res.msg,
+							icon:"none"
+						})
+					}
+				}).catch(err=>{
+					uni.hideLoading()
+					console.error(err)
+				})
+			},
+			onFocus(dist){
+				this.focus = true
+				this.$emit('pageMoveUp', dist)
+			},
+			pageUp(dist){
+				this.$emit('pageMoveUp', dist)
+			},
+			admireHandel(e) {
+				admire_check({
+					feedid: this.options.id,
+					userid: this.userInfo.id
+				}).then(res => {
+					this.$emit("admireCheck")
+				}).catch(err => {
+					console.error(err)
+				})
+				e.stopPropagation()
+			}
+		}
+	}
+</script>
+
+<style scoped>
+	.feed-cell-item{
+		flex-direction: row;
+		padding-top: 30rpx;
+		padding-left: 30rpx;
+		padding-right: 30rpx;
+		padding-bottom: 20rpx;
+		margin-bottom: 20rpx;
+		background-color: white;
+	}
+	.content{
+		width: 690rpx;
+		display: flex;
+		flex-direction: column;
+	}
+	.title{
+		color: #333333;
+		font-size: 30rpx;
+		line-height: 32rpx;
+	}
+	.img-group{
+		display: flex;
+		flex-direction: row;
+		justify-content: space-between;
+		flex-wrap: wrap;
+	}
+	.img{
+		margin-top: 10rpx;
+		width: 340rpx;
+		height: 340rpx;
+	}
+	.footer{
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+		margin-top: 10px;
+	}
+	.time{
+		width: 300rpx;
+		/* #ifdef APP-PLUS */
+		/* #endif */
+		font-size: 26rpx;
+		color: #999999;
+	}
+	.footer-right{
+		display: flex;
+		flex-direction: row;
+		justify-content: flex-end;
+	}
+	.comment-group,.admire-group{
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		padding: 0 5rpx;
+	}
+	/* .comment-group{
+		justify-content: flex-end;
+		width: 100rpx;
+		padding-top: 5rpx;
+		padding-bottom: 5rpx;
+	} */
+	.admire-group{
+		margin-right: 20px;
+	}
+	.icon{
+		width: 40rpx;
+		height: 38rpx;
+	}
+	.num{
+		color: #999999;
+		font-size: 28rpx;
+		margin-left: 2px;
+	}
+</style>

@@ -1,0 +1,533 @@
+<template>
+	<view class="tabs" :style="style" @click="hidekeyBard">
+		<swiper class="swiper-box" style="flex: 1;" :duration="300" @change="ontabchange">
+			<swiper-item class="swiper-item">
+				<!-- #ifdef APP-NVUE -->
+				<list class="scroll-v list" enableBackToTop="true" scroll-y loadmoreoffset="15">
+					<refresh class="refresh" @refresh="onrefresh" @pullingdown="onpullingdown" :display="refreshing ? 'show' : 'hide'">
+						<div class="refresh-view">
+							<image class="refresh-icon" :src="refreshIcon" :style="{width: (refreshing || pulling) ? 0: '30px'}" :class="{'refresh-icon-active': refreshFlag}"></image>
+							<loading-indicator class="loading-icon" animating="true" v-if="refreshing"></loading-indicator>
+							<text class="loading-text">{{refreshText}}</text>
+						</div>
+					</refresh>
+					<cell>
+						<feed-cell-item @comment="commentOn" @admireCheck="admireCheck" @pageMoveUp="pageMoveUp" :options="options" :admire0Url="admire0Url" :admire1Url="admire1Url" :commentUrl="commentUrl"></feed-cell-item>
+					</cell>
+					<cell >
+						<uni-swipe-action>
+							<uni-swipe-action-item :disabled="userInfo.type == 0" v-for="(item,index) in options.feeComment" :key="item.id">
+								<comment-item :options="item" :index="index"></comment-item>
+								<template v-slot:right v-if="userInfo.type > 0">
+									<view @click="delComment($event,item, index)" class="slot-button"><text class="slot-button-text">删除</text></view>
+								</template>
+							</uni-swipe-action-item>
+						</uni-swipe-action>
+					</cell>
+					<cell class="loading-more" v-if="empty">
+						<text class="loading-more-text">暂无评论</text>
+					</cell>
+					<cell class="loading-more" v-else-if="noMore && options.feeComment.length > 10">
+						<text class="loading-more-text">没有更多了~</text>
+					</cell>
+<!-- 					<cell class="loading-more" v-else-if="isLoading && options.feeComment.length > 10">
+						<text class="loading-more-text">{{loadingText}}</text>
+					</cell> -->
+				</list>
+				<!-- #endif -->
+				<!-- #ifndef APP-NVUE -->
+				<scroll-view class="scroll-v list" enableBackToTop="true" scroll-y @scrolltolower="loadMore">
+					<feed-cell-item :options="options" @comment="commentOn" @admireCheck="admireCheck"></feed-cell-item>
+					<view v-for="(item,index) in options.feeComment" :key="item.id">
+						<comment-item :options="item" :index="index"></comment-item>
+					</view>
+					<view class="loading-more" v-if="empty">
+						<text class="loading-more-text">暂无评论~</text>
+					</view>
+					<view class="loading-more" v-else-if="noMore && options.feeComment.length > 10">
+						<text class="loading-more-text">没有更多了~</text>
+					</view>
+					<!-- <view class="loading-more" v-else-if="isLoading && options.feeComment.length > 10">
+						<text class="loading-more-text">{{loadingText}}</text>
+					</view> -->
+				</scroll-view>
+				<!-- #endif -->
+			</swiper-item>
+		</swiper>
+	</view>
+</template>
+<script>
+	import {
+		mapGetters,
+		mapMutations
+	} from 'vuex'
+	import {
+		formatDate,
+		timeDis
+	} from '@/utils/param.js'
+	import uniSwipeAction from '@/components/uni-swipe-action/uni-swipe-action.vue'
+	import uniSwipeActionItem from '@/components/uni-swipe-action-item/uni-swipe-action-item.vue'
+	import feedCellItem from './components/feedCellItem.nvue';
+	import commentItem from'./components/commentItem.nvue'
+	import { get_comment_data, del_comment, get_feedback_info } from "@/common/http.nvue.api.js"
+	export default {
+		components: {
+			feedCellItem,
+			commentItem,
+			uniSwipeAction,
+			uniSwipeActionItem
+		},
+		data() {
+			return {
+				opt:{},
+				fromService:false,
+				prevPage:0,
+				page:1,
+				rows:10,
+				empty:false,
+				noMore: false,
+				options:{},
+				style:{
+					"transform":"translateY(0)"
+				},
+				"admire0Url":"../../static/icons/index/admire.png",
+				"admire1Url":"../../static/icons/index/no-admire.png",
+				"commentUrl":"../../static/icons/index/msg.png",
+				isLoading: false,
+				refreshText: "",
+				loadingText: '加载更多...',
+				cacheTab: [],
+				tabIndex: 0,
+				tabBars: [{
+					name: '推荐',
+					id: 'tuijian'
+				}],
+				scrollInto: "",
+				showTips: false,
+				navigateFlag: false,
+				refreshing: false,
+				refreshFlag: false,
+				pulling: false,
+				refreshIcon: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAMAAABg3Am1AAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAB5QTFRFcHBw3Nzct7e39vb2ycnJioqK7e3tpqam29vb////D8oK7wAAAAp0Uk5T////////////ALLMLM8AAABxSURBVHja7JVBDoAgDASrjqj//7CJBi90iyYeOHTPMwmFZrHjYyyFYYUy1bwUZqtJIYVxhf1a6u0R7iUvWsCcrEtwJHp8MwMdvh2amHduiZD3rpWId9+BgPd7Cc2LIkPyqvlQvKxKBJ//Qwq/CacAAwDUv0a0YuKhzgAAAABJRU5ErkJggg=="
+			}
+		},
+		onLoad(opt) {
+			if(opt.from && opt.from == 'service'){
+				this.fromService = true
+				this.opt = opt
+				this.getFeedInfo()
+			} else {
+				this.options = getApp().globalData.feedInfo
+			}
+			uni.$on('setfeedOptions', this.setfeedOptions)
+		},
+		onUnload() {
+			uni.$off('setfeedOptions', this.setfeedOptions)
+		},
+		computed:{
+			...mapGetters([
+				"userInfo"
+			])
+		},
+		methods: {
+			setfeedOptions(data){
+				this.options = getApp().globalData.feedInfo
+			},
+			getFeedInfo(){
+				get_feedback_info({
+					fid: Number(this.opt.fid) 
+				}).then(res=>{
+					if(res.code == 0){
+						let data = res.data || {}
+						if(data.id){
+							let nowtime = formatDate(data.nowtime)
+							let addtime = formatDate(data.addtime)
+							data.time = timeDis(addtime, nowtime)
+							data.isAdmire = data.Feelikes.includes(this.userInfo.id)
+							data.feeCommentLen = data.feeComment.length || 0
+							uni.$emit('setGlobalFeed', data)
+						}
+					}else{
+						uni.showToast({
+							title:res.msg,
+							icon:"none"
+						})
+					}
+				}).catch(err=>{
+					console.log(err)
+				})
+			},
+			hidekeyBard(){
+				uni.$emit('hidekeyBard')
+			},
+			getList() {
+				this.empty = false
+				let feedid = this.options.id || this.opt.fid
+				get_comment_data({
+					feedid
+				}).then(res=>{
+					if(res.code ==0){
+						if(res.data){
+							uni.$emit("updateComment", {id:feedid,...res.data})
+						}
+					} else {
+						uni.showToast({
+							title:res.msg
+						})
+					}
+					this.refreshEnd()
+					this.offDown()
+				}).catch(err=>{
+					console.error(err)
+				})
+			},
+			goDetail(e) {
+				if (this.navigateFlag) {
+					return;
+				}
+				this.navigateFlag = true;
+				uni.navigateTo({
+					url: './detail/detail?title=' + e.title
+				});
+				setTimeout(() => {
+					this.navigateFlag = false;
+				}, 200)
+			},
+			close(index1, index2) {
+				uni.showModal({
+					content: '是否删除本条信息？',
+					success: (res) => {
+						if (res.confirm) {
+							this.newsList[index1].data.splice(index2, 1);
+						}
+					}
+				})
+			},
+			loadMore() {
+				if(this.empty || this.noMore) return
+				this.page ++
+				this.getList();
+			},
+			ontabchange(e) {
+				let index = e.target.current || e.detail.current;
+				this.switchTab(index);
+			},
+			switchTab(index) {
+				if (this.newsList[index].data.length === 0) {
+					this.getList();
+				}
+				if (this.tabIndex === index) {
+					return;
+				}
+				// 缓存 tabId
+				if (this.newsList[this.tabIndex].data.length > MAX_CACHE_DATA) {
+					let isExist = this.cacheTab.indexOf(this.tabIndex);
+					if (isExist < 0) {
+						this.cacheTab.push(this.tabIndex);
+						//console.log("cache index:: " + this.tabIndex);
+					}
+				}
+
+				this.tabIndex = index;
+				this.scrollInto = this.tabBars[index].id;
+
+				// 释放 tabId
+				if (this.cacheTab.length > MAX_CACHE_PAGE) {
+					let cacheIndex = this.cacheTab[0];
+					this.clearTabData(cacheIndex);
+					this.cacheTab.splice(0, 1);
+					//console.log("remove cache index:: " + cacheIndex);
+				}
+			},
+			clearTabData(e) {
+				this.dataList.length = 0;
+				this.loadingText = "加载更多...";
+			},
+			refreshData() {},
+			onrefresh() {
+				if (!this.refreshFlag) {
+					return;
+				}
+				this.refreshing = true;
+				this.prevPage = 0
+				this.page = 1
+				this.refreshText = "正在刷新...";
+				this.getList()
+			},
+			onpullingdown(e) {
+				if (this.refreshing || this.pulling) {
+					return;
+				}
+				if (Math.abs(e.pullingDistance) > Math.abs(e.viewHeight)) {
+					this.refreshFlag = true;
+					this.refreshText = "释放立即刷新";
+					this.empty = false
+					//this.noMore = false
+				} else {
+					this.refreshFlag = false;
+					this.refreshText = "下拉可以刷新";
+					
+				}
+			},
+			refreshEnd(){
+				setTimeout(() => {
+					// this.unpdateIng = false
+					this.refreshData();
+					this.pulling = true;
+					this.refreshing = false;
+					this.refreshFlag = false;
+					this.refreshText = "已刷新";
+					setTimeout(() => { // TODO fix ios和Android 动画时间相反问题
+						this.pulling = false;
+					}, 500);
+				}, 2000);
+			},
+			offDown(){
+				if(!this.options.feeComment.length){
+					this.empty = true
+				} else {
+					this.empty = false
+				}
+				if(this.options.feeComment.length > 20){
+					this.noMore = true
+				} else {
+					this.noMore = false
+				}
+			},
+			newGuid() {
+				let s4 = function() {
+					return (65536 * (1 + Math.random()) | 0).toString(16).substring(1);
+				}
+				return (s4() + s4() + "-" + s4() + "-4" + s4().substr(0, 3) + "-" + s4() + "-" + s4() + s4() + s4()).toUpperCase();
+			},
+			pageMoveUp(dist){
+				this.style = {
+					transform: `translateY(-${dist}px)`
+				}
+			},
+			admireCheck(){
+				this.options.isAdmire = !this.options.isAdmire
+				if(this.options.isAdmire)this.options.counts ++ 
+				else this.options.counts --
+			},
+			delComment(e,item, index){
+				uni.$emit("delComment",{...item, index})
+				e.stopPropagation()
+			},
+			// commentOn(data){
+			// 	this.options.feeComment.push(data)
+			// }
+		}
+	}
+</script>
+
+<style scoped>
+	/* #ifndef APP-PLUS */
+	page {
+		width: 100%;
+		min-height: 100%;
+		display: flex;
+	}
+
+	/* #endif */
+
+	.tabs {
+		flex: 1;
+		flex-direction: column;
+		overflow: hidden;
+		background-color: #f6f6f6;
+		/* #ifdef MP-ALIPAY || MP-BAIDU */
+		height: 100vh;
+		/* #endif */
+	}
+
+	.tab-group {
+		display: flex;
+		flex-direction: row;
+		align-items: flex-start;
+		justify-content: space-between;
+		align-items: flex-start;
+		padding-left: 24rpx;
+		padding-right: 24rpx;
+	}
+
+	.icon-btn {
+		width: 30rpx;
+		height: 30rpx;
+		margin: 24rpx;
+	}
+
+	.scroll-h {
+		width: 550rpx;
+		flex-direction: row;
+		/* #ifndef APP-PLUS */
+		white-space: nowrap;
+		/* #endif */
+		/* flex-wrap: nowrap; */
+		/* border-color: #cccccc;
+		border-bottom-style: solid;
+		border-bottom-width: 1px; */
+		margin-bottom: 10px;
+	}
+
+	.uni-tab-item {
+		/* #ifndef APP-PLUS */
+		display: inline-block;
+		/* #endif */
+		flex-wrap: nowrap;
+	}
+
+	.uni-tab-group {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+	}
+
+	.uni-tab-item-title {
+		width: 120rpx;
+		text-align: center;
+		color: #555;
+		font-size: 36rpx;
+		height: 80rpx;
+		line-height: 80rpx;
+		flex-wrap: nowrap;
+		/* #ifndef APP-PLUS */
+		white-space: nowrap;
+		/* #endif */
+	}
+
+	.border-img {
+		width: 112rpx;
+		height: 20rpx;
+	}
+
+	.uni-tab-item-title-active {
+		color: #e1b893;
+		font-size: 48rpx;
+		font-weight: 600;
+	}
+
+	.date-group {
+		flex-direction: row;
+		align-items: center;
+		padding-left: 24rpx;
+		padding-right: 24rpx;
+		margin-bottom: 10px;
+	}
+
+	.date {
+		font-size: 26rpx;
+		color: #999999;
+		width: 200rpx;
+	}
+
+	.date-line {
+		height: 1rpx;
+		background-color: #cccccc;
+		width: 500rpx;
+	}
+
+	.swiper-box {
+		flex: 1;
+	}
+
+	.swiper-item {
+		flex: 1;
+		flex-direction: row;
+	}
+
+	.scroll-v {
+		flex: 1;
+		/* #ifndef MP-ALIPAY */
+		flex-direction: column;
+		/* #endif */
+		width: 750rpx;
+	}
+
+	.update-tips {
+		position: absolute;
+		left: 0;
+		top: 41px;
+		right: 0;
+		padding-top: 5px;
+		padding-bottom: 5px;
+		background-color: #FDDD9B;
+		align-items: center;
+		justify-content: center;
+		text-align: center;
+	}
+
+	.update-tips-text {
+		font-size: 14px;
+		color: #ffffff;
+	}
+
+	.refresh {
+		width: 750rpx;
+		height: 64px;
+		justify-content: center;
+	}
+
+	.refresh-view {
+		flex-direction: row;
+		flex-wrap: nowrap;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.refresh-icon {
+		width: 30px;
+		height: 30px;
+		transition-duration: .5s;
+		transition-property: transform;
+		transform: rotate(0deg);
+		transform-origin: 15px 15px;
+	}
+
+	.refresh-icon-active {
+		transform: rotate(180deg);
+	}
+
+	.loading-icon {
+		width: 20px;
+		height: 20px;
+		margin-right: 5px;
+		color: #999999;
+	}
+
+	.loading-text {
+		margin-left: 2px;
+		font-size: 16px;
+		color: #999999;
+	}
+
+	.loading-more {
+		align-items: center;
+		justify-content: center;
+		padding-top: 10px;
+		padding-bottom: 10px;
+		text-align: center;
+	}
+
+	.loading-more-text {
+		font-size: 28rpx;
+		color: #999;
+	}
+	.slot-button {
+		/* #ifndef APP-NVUE */
+		display: flex;
+		/* #endif */
+		height: 100%;
+		flex: 1;
+		flex-direction: row;
+		justify-content: center;
+		align-items: center;
+		padding: 0rpx 20px;
+		background-color: #ff5a5f;
+	}
+	
+	.slot-button-text {
+		color: #ffffff;
+		font-size: 14px;
+	}
+</style>

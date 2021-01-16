@@ -1,0 +1,95 @@
+<template>
+	<view class="sort-Person-container" style="position: relative;">
+		
+		<image style="position: absolute; " class="imgs" src="/static/icon/sortList.png" mode="widthFix"></image>
+		<view class="left" v-if="renderJson.id">
+			<text class="idx">{{caculatorIdx}}</text>
+			<image class="avatar" :src="renderJson.avatar" mode="aspectFill"></image>
+			<text class="nickname">{{renderJson.nickname}}</text>
+		</view>
+		<view class="right" v-if="renderJson.id">
+			<text class="income">{{renderJson.income?renderJson.income:0}}</text>
+			<text class="zuan">钻</text>
+		</view>
+	</view>
+</template>
+
+<script>
+	export default {
+		props:{
+			index:Number, //排序的idx
+			renderJson:{ //渲染的数据
+				type:Object,
+				default:{
+					avatar:'',
+					nickname:'',
+					income:0,
+					id:''
+				}
+			}
+		},
+		computed:{
+			caculatorIdx(){
+				return this.index+1
+			}
+		}
+	}
+</script>
+
+<style scoped>
+	.sort-Person-container{
+		width: 750rpx;
+		height: 112rpx;
+		flex-direction: row;
+		align-items: center;
+	}
+	.imgs{
+		width: 750rpx;
+		height: 112rpx;
+	}
+	.left{
+		width: 550rpx;
+		padding-left: 60rpx;
+		
+		flex-direction: row;
+		align-items: center;
+	}
+	.idx{
+		font-size: 24rpx;
+		color: #F5A656;
+		
+		
+	}
+	.nickname{
+		font-size: 24rpx;
+		color: #FFFFFF;
+	}
+	.avatar{
+		margin-left: 10rpx;
+		margin-right: 10rpx;
+		width: 80rpx;
+		height: 80rpx;
+		background-color: #666;
+		border-radius: 100rpx;
+	}
+	.right{
+		width: 200rpx;
+		height: 112rpx;
+		padding-right: 60rpx;
+		
+		flex-direction: row;
+		align-items: center;
+		justify-content: flex-end;
+	}
+	.income{
+		font-size: 24rpx;
+		color: #FFFFFF;
+		line-height: 112rpx;
+	}
+	.zuan{
+		font-size: 24rpx;
+		color: #F5A656;
+		margin-left: 5rpx;
+		line-height: 112rpx;
+	}
+</style>

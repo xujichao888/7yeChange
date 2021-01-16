@@ -1,0 +1,791 @@
+<template>
+	<view class="">
+		<view :style="style" @click="setKeobordHide">
+			<!-- #ifdef APP-NVUE -->
+			<list class="scroll-v" :scroll-top="scrollTop" :style="scrollstyle" enableBackToTop="true" scroll-y loadmoreoffset="15"
+			 @scroll="scrollList">
+				<cell class="cell" id="list-cell">
+					<view class="loading-more-title">
+						<text class="loading-more-text" v-if="isMore && noMoreLen">- 下拉查看更多历史记录 -</text>
+					</view>
+					<view v-for="(item, index) in currentUser.message" :key="index" :ref="'item' + item.id" :id="'item' + item.id">
+						<chat-cell :options="{...item}" :user="currentUser.userInfo"></chat-cell>
+					</view>
+				</cell>
+			</list>
+			<!-- #endif -->
+			<!-- #ifndef APP-NVUE -->
+			<scroll-view class="scroll-v" :style="scrollstyle" :scroll-top="scrollTop" :scroll-into-view="itemid"
+			 enableBackToTop="true" scroll-y @scroll="scrollList">
+				<view id="scroll-cell">
+					<view v-for="(item, index) in currentUser.message" :key="index" :id="'item' + item.id">
+						<chat-cell :options="item" :user="currentUser.userInfo"></chat-cell>
+					</view>
+				</view>
+			</scroll-view>
+			<!-- #endif -->
+		</view>
+		<chat-input v-if="chatView || userInfo.type > 0 && !chatViewIsTabbar" photo @pageUp="pageUp" @focus="onFocus" :focus="focus" @blur="blur"
+		 @senImg="senImg" @confirm="confirm" :bottom="bottom"></chat-input>
+		<view class="upTips" v-if="showUpMeg > 7" style="position: absolute; right: 20rpx; top: 100rpx;" @click="upto">
+			<uni-icons type="arrowup" size="20" color="#74ce46"></uni-icons>
+			<text class="showUpText">{{showUpMeg}}条未读消息</text>
+		</view>
+		<uni-popup ref="popupmes" type="message">
+			<uni-popup-message pt="10" type="error" message="网络连接断开" :duration="0"></uni-popup-message>
+		</uni-popup>
+	</view>
+</template>
+
+<script>
+	import {
+		sqlName,
+		sqlPath,
+		sqlTable,
+		userTab
+	} from "@/sqlite/config.js"
+	import chatInput from "@/components/chat-input/input.nvue"
+	import chatCell from "@/components/chat-cell/chat-cell.nvue"
+	import {
+		getScollHeight
+	} from '@/utils/param.js'
+	import {
+		get_user_info,
+		push_message,
+		get_service_info
+	} from "@/common/http.nvue.api.js"
+	import {
+		mapGetters,
+		mapMutations
+	} from 'vuex'
+	export default {
+		components: {
+			chatCell,
+			chatInput
+		},
+		data() {
+			return {
+				bottom: 0,
+				chatView: false,
+				sendData: {},
+				noMoreLen: true,
+				target: null,
+				itemid: '',
+				prevHeight: 0,
+				showUpMeg: 0,
+				dom: null,
+				sH: 0,
+				scrollTop: 0,
+				focus: false,
+				value: "",
+				style: {
+					"transform": "translateY(0)"
+				}
+			}
+		},
+		onBackPress() {
+			if (this.userInfo.type == 0) {
+				uni.switchTab({
+					url: this.prevPage
+				});
+			} else {
+				uni.switchTab({
+					url: '/pages/service/service'
+				});
+			}
+
+			return true
+		},
+		onNavigationBarButtonTap() {
+
+			if (this.userInfo.type == 0) {
+				this.style = {
+					"transform": "translateY(0)"
+				}
+				uni.switchTab({
+					url: this.prevPage
+				});
+			} else {
+				uni.switchTab({
+					url: '/pages/service/service'
+				});
+			}
+
+		},
+		onShow() {
+			let bottom = uni.getStorageSync('have_bottom');
+			if (bottom) {
+				this.bottom = bottom;
+			} else {
+				bottom = uni.getSystemInfoSync().safeAreaInsets.bottom;
+				uni.setStorageSync('have_bottom', bottom);
+				this.bottom = bottom;
+			}
+
+			if (this.userInfo.type == 0) {
+				uni.hideTabBar()
+				setTimeout(() => {
+					this.chatView = true
+				}, 100)
+				if(!this.chooseState){
+					this.getService()
+				}
+			}
+
+			if(this.userInfo.type > 0 && this.chatViewIsTabbar && !this.chooseState){
+				uni.setNavigationBarTitle({
+					title: this.currentUser.userInfo ? this.currentUser.userInfo.nickname : ''
+				})
+				if (this.currentUser.message && this.currentUser.message.length) {
+					this.initBadgeMsg()
+					this.target = this.currentUser.message.find(item => !item.isSelf && !item.isRead)
+					this.$nextTick(() => {
+						this.scollBottom()
+					})
+				}
+				uni.hideTabBar()
+				setTimeout(() => {
+					this.chatView = true
+				}, 100)
+			}
+			this.setChoose(false)
+		},
+		onHide() {
+			if (this.userInfo.type == 0 && !this.chooseState || this.userInfo.type > 0 && this.chatViewIsTabbar && !this.chooseState) {
+				this.chatView = false
+				let _this = this
+				uni.showTabBar()
+				let userid = _this.currentUser.userInfo.userid
+				_this.readMessageAll(userid)
+				_this.updateReadState(userid)
+				_this.setCurrentUser({})
+			}
+			this.style = {
+				"transform": "translateY(0)"
+			};
+			this.focus = false;
+			uni.hideKeyboard();
+		},
+		onLoad() {
+			// #ifdef APP-PLUS  
+			if (this.userInfo.type > 0) {
+
+				let pages = getCurrentPages()
+				let page = pages[pages.length - 1];
+				let currentWebview = page.$getAppWebview();
+				// currentWebview.setTitleNViewButtonStyle(0, {
+				// 	width: '0',
+				// });
+			}
+			// #endif
+			uni.setNavigationBarTitle({
+				title: this.currentUser.userInfo ? this.currentUser.userInfo.nickname : ''
+			})
+			uni.$on("sendPeerMessage", this.sendPeerMessage)
+			uni.$on('senImg', this.senImg)
+		},
+		onUnload() {
+			uni.$off('senImg', this.senImg)
+			uni.$off("sendPeerMessage", this.sendPeerMessage)
+			if (!this.chooseState) {
+				if (this.currentUser.userInfo && this.currentUser.userInfo.userid) {
+					let userid = this.currentUser.userInfo.userid
+					this.readMessageAll(userid)
+					this.updateReadState(userid)
+					this.setCurrentUser({})
+				}
+			}
+		},
+		mounted() {
+			// #ifdef APP-NVUE
+			this.dom = weex.requireModule('dom')
+			// #endif
+			this.initBadgeMsg()
+			this.sH = getScollHeight(60)
+			if (this.currentUser.message && this.currentUser.message.length) {
+				this.target = this.currentUser.message.find(item => !item.isSelf && !item.isRead)
+				this.$nextTick(() => {
+					setTimeout(()=>{
+						this.scollBottom()
+					},500)
+					
+				})
+			}
+		},
+		computed: {
+			...mapGetters([
+				'currentUser',
+				'userInfo',
+				'txImisLogin',
+				'txIm',
+				'clientInfo',
+				'prevPage',
+				'networkState',
+				'nowServiceId',
+				'chooseState',
+				'chatViewIsTabbar'
+			]),
+			scrollstyle() {
+				let system_info = uni.getSystemInfoSync()
+				let titleHeight
+				if (system_info.platform === 'android') {
+					titleHeight = 48 + system_info.statusBarHeight
+				} else if (system_info.platform === 'ios') {
+					titleHeight = 44 + system_info.statusBarHeight
+				}
+				return {
+					height: getScollHeight(50) +
+						'px'
+				}
+			},
+			isMore() {
+				return this.currentUser.count && this.currentUser.count == this.currentUser.page * this.currentUser.pageSize
+			}
+		},
+		watch: {
+			currentUser: {
+				handler(newVal) {
+					if (this.currentUser.loading || !newVal.message || !newVal.message.length) return
+					this.$nextTick(() => {
+						let cells = newVal.message
+						let isSelf = cells[cells.length - 1].isSelf
+						if (isSelf) {
+							setTimeout(() => {
+								this.scollBottom()
+							}, 500)
+							return
+						}
+
+						let last_id = cells[cells.length - 1].id
+						const query = uni.createSelectorQuery().in(this);
+						query.select(`#item${last_id}`).boundingClientRect(data => {
+							if (data && data.top < 1550) {
+								setTimeout(() => {
+									this.scollBottom()
+								}, 500)
+							}
+						}).exec();
+					})
+				},
+				deep: true
+			},
+			networkState: {
+				handler(val) {
+					let _this = this
+
+					function changeState(state) {
+						if (!_this.$refs.popupmes) {
+							setTimeout(() => {
+								changeState()
+							}, 500)
+							return
+						}
+						if (val) _this.$refs.popupmes.close()
+						else _this.$refs.popupmes.open()
+					}
+					changeState(val)
+				},
+				immediate: true
+			}
+		},
+		methods: {
+			...mapMutations([
+				'addMessage',
+				'readMessageAll',
+				'setCurrentUser',
+				'updateReadState',
+				'loadMoreMesslist',
+				'formatData',
+				'setServiceInfo',
+				'pushSendMessage',
+				'removeSendMes',
+				'chageSendMesState',
+				'createService',
+				'setChoose'
+			]),
+			setKeobordHide() {
+				//点击列表隐藏键盘
+				this.style = {
+					"transform": "translateY(0)"
+				};
+				uni.hideKeyboard();
+			},
+			getService() {
+				get_service_info().then(res => {
+					if (res.code == 0) {
+						if (!this.nowServiceId || res.data.serviceinfo.id != this.nowServiceId) {
+							this.createService(res)
+						}
+						this.prevHeight = 0
+						this.setServiceInfo()
+						let _isOne = uni.getStorageSync(`${this.userInfo.id}_isOne`)
+						if (_isOne) {
+							uni.setStorageSync(`${this.userInfo.id}_isOne`, false)
+							let msg = res.data.init
+							if (msg && msg.length) {
+								for (let i = 0; i < msg.length; i++) {
+									if (msg[i].type == "text_msg") {
+										let mess = msg[i].content
+										let obj = {};
+										let reg = /\[([^\]]+)\]\(night7:\/\/([\w]+)\??(&?[\w\-]*=[\w\-\/]*)*\)/g
+										//let reg2 = /\[[^\]]+\]\(night7:\/\/[\w]+\??&?[\w\-]*=[\w\-]*\)/g
+										if (reg.test(mess)) {
+											let reg2 = /\[([^\]]+)\]\(night7:\/\/([\w]+)\??(&?.*)*\)/g
+
+											//mess = mess.replace(reg, `<a style="color:#e1b893" href="/pages/$2?$3&userid=${this.userInfo.id}">$1</a>`)
+											mess = mess.replace(reg, item => {
+												let textArr = reg2.exec(item)
+												if (textArr) {
+													reg2.lastIndex = 0
+													let parm = textArr[3].split('&')
+													let _arr = parm.map(item => {
+														return item.split("=")
+													})
+													let _index = _arr.findIndex(item => item[0] == 'route')
+													let _r = _arr.splice(_index, 1)
+													let route = _r[0][1]
+													let query = parm.join('&')
+													return `<a style="color:#e1b893" href="/pages/${route}?${query}&userid=${this.userInfo.id}">${textArr[1]}</a>`
+												}
+												return ""
+											})
+											obj = {
+												userid: this.currentUser.userInfo.userid,
+												type: "text_msg",
+												userInfo: {
+													userid: this.currentUser.userInfo.userid,
+													nickname: this.currentUser.userInfo.nickname,
+													avatar: this.currentUser.userInfo.avatar,
+													sex: this.currentUser.userInfo.sex
+												},
+												message: {
+													type: 3,
+													date: new Date().getTime(),
+													id: new Date().getTime(),
+													msg: `<div style="padding:10px;background:white;border-radius: 2px;font-size: 16px;color: #333333;line-height: 22px;">${mess}<div>`,
+													isSelf: false,
+													isRead: true,
+													info: {
+														sex: "1",
+														userid: this.userInfo.id
+													}
+												}
+											}
+										} else {
+											obj = {
+												userid: this.currentUser.userInfo.userid,
+												type: "text_msg",
+												userInfo: {
+													userid: this.currentUser.userInfo.userid,
+													nickname: this.currentUser.userInfo.nickname,
+													avatar: this.currentUser.userInfo.avatar
+												},
+												message: {
+													type: 0,
+													date: new Date().getTime(),
+													msg: mess,
+													id: new Date().getTime(),
+													isSelf: false,
+													isRead: true,
+												}
+											}
+										}
+										this.addMessage(obj)
+									} else if (msg[i].type == "image_msg") {
+										uni.getImageInfo({
+											src: msg[i].content,
+											success: (image) => {
+												this.addMessage({
+													userid: this.currentUser.userInfo.userid,
+													type: "image_msg",
+													userInfo: {
+														userid: this.currentUser.userInfo.userid,
+														nickname: this.currentUser.userInfo.nickname,
+														avatar: this.currentUser.userInfo.avatar
+													},
+													message: {
+														date: new Date().getTime(),
+														id: new Date().getTime(),
+														type: 1,
+														isSelf: false,
+														isRead: true,
+														img: msg[i].content,
+														width: image.width,
+													}
+												})
+											}
+										});
+									}
+								}
+							}
+						}
+						uni.setNavigationBarTitle({
+							title: this.currentUser.userInfo ? this.currentUser.userInfo.nickname : ''
+						})
+						if (this.currentUser.message && this.currentUser.message.length) {
+							this.initBadgeMsg()
+							this.target = this.currentUser.message.find(item => !item.isSelf && !item.isRead)
+							this.$nextTick(() => {
+								this.scollBottom()
+							})
+						}
+					} else {
+						uni.showToast({
+							title: res.msg,
+							icon: "none"
+						})
+					}
+				}).catch(err => {
+					console.log(err, '客服信息获取失败')
+				})
+				uni.hideTabBar()
+				setTimeout(() => {
+					this.chatView = true
+				}, 100)
+			},
+			showInput() {
+				this.focus = true
+			},
+			blur() {
+				this.focus = false
+			},
+			confirm(e) {
+				if (!this.networkState) return
+				let that = this
+				let perfect = true
+				if (!this.userInfo.birthday || !this.userInfo.city || !this.userInfo.city.length || !this.userInfo.height || !this.userInfo
+					.weight) {
+					perfect = false
+				}
+				this.sendData = {
+					userid: this.userInfo.id,
+					userInfo: {
+						userid: this.userInfo.id,
+						nickname: this.userInfo.nickname,
+						avatar: this.userInfo.avatarimg,
+						sex: this.userInfo.sex
+					},
+					message: {
+						type: 0,
+						date: new Date().getTime(),
+						msg: e.detail.value,
+						id: new Date().getTime(),
+						isSelf: true,
+						perfect
+					}
+				}
+				console.log(this.currentUser.userInfo.userid, "对方id")
+				that.txIm.sendMessageText(JSON.stringify(this.sendData), this.currentUser.userInfo.userid + '', true, true, true)
+
+				this.sendData.userid = this.currentUser.userInfo.userid
+				this.sendData.userInfo = {
+					userid: this.currentUser.userInfo.userid,
+					nickname: this.currentUser.userInfo.nickname,
+					avatar: this.currentUser.userInfo.avatar,
+				}
+				this.sendData.message.id = this.sendData.message.id + '' + this.userInfo.id
+				this.sendData.message.isSelf = true
+				this.sendData.message.sendErr = false
+
+				this.addMessage(this.sendData)
+				this.pushSendMessage({
+					userid: this.sendData.userid,
+					mid: this.sendData.message.id
+				})
+
+			},
+			sendPeerMessage(res) {
+				if (res.method == "sendPeerMessage") {
+					if (res.code == 0 || res.code == 4) {
+						console.log("发送成功")
+						this.removeSendMes()
+						if (res.code == 4) this.pushMessage(this.sendData)
+					} else {
+						console.log("发送失败")
+						this.chageSendMesState()
+					}
+				} else {
+					if (res.code == 0 || res.code == 4) {
+						console.log("发送成功")
+						this.removeSendMes()
+						if (res.code == 4) this.pushMessage(this.sendData)
+					} else {
+						console.log("发送失败")
+						this.chageSendMesState()
+					}
+
+				}
+			},
+			senImg({
+				img,
+				width
+			}) {
+				if (!this.networkState) return
+			
+				uni.saveFile({
+					tempFilePath: img,
+					success: (res) => {
+						let savedFilePath = res.savedFilePath;
+						this.sendData = {
+							img: `file://${plus.io.convertLocalFileSystemURL(savedFilePath)}`,
+							width
+						}
+						this.txIm.sendImage(plus.io.convertLocalFileSystemURL(img), this.currentUser.userInfo.userid + '', true, true,
+							true)
+			
+						this.sendData = {
+							userid: this.currentUser.userInfo.userid,
+							userInfo: {
+								userid: this.currentUser.userInfo.userid,
+								nickname: this.currentUser.userInfo.nickname,
+								avatar: this.currentUser.userInfo.avatar,
+							},
+							message: {
+								date: new Date().getTime(),
+								id: new Date().getTime() + '' + this.userInfo.id,
+								type: 1,
+								isSelf: true,
+								isRead: true,
+								img: this.sendData.img,
+								width: this.sendData.width,
+								isSelf: true,
+								sendErr: false
+							}
+						}
+						this.addMessage(this.sendData)
+						this.pushSendMessage({
+							userid: this.sendData.userid,
+							mid: this.sendData.message.id
+						})
+					}
+				});
+			
+			
+			},
+			pushMessage(data) {
+				if (!data.message) return
+				let targetUsrId = this.currentUser.userInfo.userid
+				get_user_info({
+					userid: targetUsrId
+				}).then(res => {
+					let title = res.data.nickname
+					let cid = res.data.uinpush.cid
+					let platform = res.data.uinpush.phonemodel
+					if (cid && platform && this.userInfo.uinpush.cid != cid) {
+						push_message({
+							body: data.message.type == 0 ? data.message.msg : '图片',
+							title,
+							cid,
+							click_type: "none",
+							pushType: platform,
+							url: ""
+						}).then(res => {
+							if (res.code == 0) {
+								console.log(res, "推送成功")
+							} else {
+								console.log(res, "推送失败")
+							}
+						}).catch(err => {
+							console.log(err, "推送失败")
+						})
+					}
+				}).catch(err => {
+					console.error(err)
+				})
+
+			},
+			onFocus(dist) {
+				this.focus = true
+				this.style = {
+					transform: `translateY(-${dist}px)`
+				}
+			},
+			pageUp(dist) {
+				this.style = {
+					transform: `translateY(-${dist}px)`
+				}
+			},
+			admireHandel() {
+				uni.showLoading({
+					title: "请稍等..."
+				})
+				admire_check({
+					feedid: this.options.id,
+					userid: this.userInfo.id
+				}).then(res => {
+					uni.hideLoading()
+					this.$emit("admireCheck")
+				}).catch(err => {
+					uni.hideLoading()
+					console.error(err)
+				})
+			},
+			scollBottom() {
+				// #ifdef APP-NVUE
+				// let cells = this.currentUser.message
+				// let last_id = cells[cells.length - 1].id
+				// this.$nextTick(() => {
+				// 	this.dom.scrollToElement(this.$refs['item' + last_id][0], {
+				// 		offset: 0,
+				// 		animated: false
+				// 	});
+				// })
+
+				const query = uni.createSelectorQuery().in(this);
+				query.select('#list-cell').boundingClientRect(data => {
+					if (data.height == 0 && this.currentUser.message.length) {
+						setTimeout(() => {
+							this.scollBottom()
+						}, 100)
+						return
+					}
+					if (this.sH < data.height) {
+						this.scrollTop = data.height - this.sH + Math.random()
+					} else {
+						this.scrollTop = 0
+					}
+				}).exec();
+
+				// #endif
+				// #ifndef APP-NVUE
+				const query = uni.createSelectorQuery().in(this);
+				query.select('#scroll-cell').boundingClientRect(data => {
+					if (this.prevHeight == data.height) {
+						this.scollBottom()
+						return
+					}
+					this.prevHeight = data.height
+					if (this.sH < data.height) {
+						this.scrollTop = data.height - this.sH
+					} else {
+						this.scrollTop = 0
+					}
+				}).exec();
+				// #endif
+			},
+			upto() {
+				// #ifdef APP-NVUE
+				const el = this.$refs['item' + this.target.id][0]
+				this.dom.scrollToElement(el, {})
+				// #endif
+				// #ifndef APP-NVUE
+				this.itemid = 'item' + this.target.id
+				// #endif
+
+				this.showUpMeg = 0
+			},
+			scrollList(e) {
+				if (this.showUpMeg > 7) {
+					const query = uni.createSelectorQuery().in(this);
+					query.select(`#item${this.target.id}`).boundingClientRect(data => {
+						if (data.top > 0) this.showUpMeg = 0
+					}).exec();
+				}
+				this.loadMore(e)
+			},
+			loadMore(e) {
+				if (!this.currentUser.count || !e.isDragging) return
+				if (e.contentOffset.y >= 0 && this.currentUser.count == this.currentUser.page * this.currentUser.pageSize) {
+					if (this.currentUser.loading) return
+					this.currentUser.loading = true
+					this.loadMoreSql(e)
+				}
+
+			},
+			async loadMoreSql(e) {
+				let userid = this.currentUser.userInfo.userid
+				let page = this.currentUser.page
+				let pageSize = this.currentUser.pageSize
+				let count = this.currentUser.count
+				let sqlite = this.$store.state.sqlite
+				let sql =
+					`select * from ${sqlTable} where userid = ${userid} order by uid desc Limit ${pageSize} Offset ${page * pageSize}`
+				let selector = `#item${this.currentUser.message[0].id}`
+				sqlite.select(sql).then(res => {
+					if (res.length) {
+						this.formatData({
+							list: res,
+							page,
+							pageSize,
+							count
+						})
+						this.$nextTick(() => {
+							if (this.currentUser.count && this.currentUser.count == this.currentUser.page * this.currentUser.pageSize) {
+								this.noMoreLen = true
+							} else {
+								this.noMoreLen = false
+							}
+							let view = uni.createSelectorQuery().in(this).select(selector);
+							view.boundingClientRect((res) => {
+								this.scrollTop = res.top
+								this.currentUser.loading = false
+							}).exec();
+						})
+						return
+					}
+					this.currentUser.loading = false
+				}).catch(err => {
+					this.currentUser.loading = false
+					console.error(err)
+				})
+			},
+			initBadgeMsg() {
+				if (this.currentUser.message) {
+					let noRead = this.currentUser.message.filter(item => !item.isRead && !item.isSelf)
+					this.showUpMeg = noRead.length
+				}
+			},
+			getScollViewHeight(scollId) {
+				return new Promise((resolve, reject) => {
+					const query = uni.createSelectorQuery().in(this);
+					query.select(`#${scollId}`).boundingClientRect(data => {
+						resolve(data)
+					}).exec();
+				})
+			},
+			compare(property) {
+				return function(a, b) {
+					var value1 = a[property];
+					var value2 = b[property];
+					return value1 - value2;
+				}
+			}
+		}
+	}
+</script>
+
+<style scoped>
+	.scroll-v {
+		width: 750rpx;
+		background-color: #F6F6F6;
+	}
+
+	.upTips {
+		background-color: white;
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		padding: 10rpx;
+		border-top-left-radius: 5rpx;
+		border-bottom-left-radius: 5rpx;
+	}
+
+	.showUpText {
+		font-size: 26rpx;
+		color: #74ce46;
+		padding-left: 5rpx;
+	}
+
+	.loading-more-title {
+		display: flex;
+		align-items: center;
+	}
+
+	.loading-more-text {
+		text-align: center;
+		color: #CCCCCC;
+		font-size: 24rpx;
+		padding-top: 10rpx;
+		padding-bottom: 10rpx;
+	}
+</style>

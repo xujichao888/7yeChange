@@ -1,0 +1,769 @@
+<template>
+	<view class="tabs">
+		<swiper class="swiper-box" style="flex: 1;" :duration="300" @change="ontabchange">
+			<swiper-item class="swiper-item">
+				<!-- #ifdef APP-NVUE -->
+				<list class="scroll-v list" enableBackToTop="true" scroll-y loadmoreoffset="15" @loadmore="loadMore">
+					<refresh class="refresh" @refresh="onrefresh" @pullingdown="onpullingdown" :display="refreshing ? 'show' : 'hide'">
+						<div class="refresh-view">
+							<image class="refresh-icon" :src="refreshIcon" :style="{width: (refreshing || pulling) ? 0: '30px'}" :class="{'refresh-icon-active': refreshFlag}"></image>
+							<loading-indicator class="loading-icon" animating="true" v-if="refreshing"></loading-indicator>
+							<text class="loading-text">{{refreshText}}</text>
+						</div>
+					</refresh>
+					<cell v-for="(item,index) in dataList" :key="item.id" class="t_line_1">
+						<invite-item :options="item" @close="close(index)" @share="share" :showId="true">
+						</invite-item>
+					</cell>
+					<cell class="loading-more empty" v-if="empty">
+						<text class="loading-more-text">暂无数据</text>
+					</cell>
+					<cell class="loading-more" v-else-if="noMore && dataList.length > 4">
+						<text class="loading-more-text">没有更多了~</text>
+					</cell>
+					<cell class="loading-more" v-else-if="dataList.length > 4">
+						<text class="loading-more-text">{{loadingText}}</text>
+					</cell>
+				</list>
+				<!-- #endif -->
+			</swiper-item>
+		</swiper>
+		<uni-popup ref="popupForward" type="dialog" :maskClick="false">
+			<uni-popup-forward title="发送给:" :user="shareUser" :img="shareImg" @confirm="confirm"></uni-popup-forward>
+		</uni-popup>
+	</view>
+</template>
+<script>
+	import uniPopupForward from '@/components/uni-popup/uni-popup-forward.vue'
+	import {
+		mapGetters,
+		mapMutations
+	} from 'vuex'
+	import mButton from "@/components/button/button.vue"
+	import inviteItem from '@/pages/user/components/inviteItem.nvue';
+	import {
+		screen_user,
+		get_user_info,
+		push_message,
+	} from "@/common/http.nvue.api.js"
+	import {
+		formatDate,
+		timeDis,
+		getConstellation
+	} from '@/utils/param.js'
+
+	// 缓存每页最多
+	const MAX_CACHE_DATA = 100;
+	// 缓存页签数量
+	const MAX_CACHE_PAGE = 3;
+
+	export default {
+		components: {
+			inviteItem,
+			mButton,
+			uniPopupForward
+		},
+		data() {
+			return {
+				sendData: {},
+				shareImg: "",
+				shareUser: {},
+				authority_users_id: [],
+				isfRromAdd: false,
+				authority: 0,
+				param: {
+					beginregtime: "",
+					endregtime: "",
+					beginage: 0,
+					endage: 0,
+					beginheight: 0,
+					endheight: 0,
+					beginweight: 0,
+					endweight: 0,
+					emotion: "",
+					hoobyid: "",
+					city: "",
+					nikename: "",
+					usertag: ""
+				},
+				prevPage: 0,
+				page: 1,
+				rows: 10,
+				dataList: [],
+				isLoading: false,
+				refreshText: "",
+				loadingText: '加载更多...',
+				empty: false,
+				noMore: false,
+				cacheTab: [],
+				tabIndex: 0,
+				tabBars: [{
+					name: '推荐',
+					id: 'tuijian'
+				}],
+				scrollInto: "",
+				showTips: false,
+				navigateFlag: false,
+				refreshing: false,
+				refreshFlag: false,
+				pulling: false,
+				index: null,
+				refreshIcon: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAMAAABg3Am1AAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAB5QTFRFcHBw3Nzct7e39vb2ycnJioqK7e3tpqam29vb////D8oK7wAAAAp0Uk5T////////////ALLMLM8AAABxSURBVHja7JVBDoAgDASrjqj//7CJBi90iyYeOHTPMwmFZrHjYyyFYYUy1bwUZqtJIYVxhf1a6u0R7iUvWsCcrEtwJHp8MwMdvh2amHduiZD3rpWId9+BgPd7Cc2LIkPyqvlQvKxKBJ//Qwq/CacAAwDUv0a0YuKhzgAAAABJRU5ErkJggg=="
+			}
+		},
+		onNavigationBarButtonTap(obj) {
+			uni.navigateTo({
+				url: '/pages/service/filter'
+			});
+		},
+		onLoad(options) {
+			this.shareImg = options.img
+			if (options.addUser) {
+				this.isfRromAdd = true
+				this.typeIndex = options.index
+				this.authority = options.authority
+				this.authority_users_id = JSON.parse(options.authority_users_id)
+			} else this.isfRromAdd = false
+
+			uni.$on("sendPeerMessage", this.sendPeerMessage)
+			uni.$on('updatePageUserList', this.updatePage)
+
+			this.getList()
+		},
+		onUnload() {
+			uni.$off('sendPeerMessage', this.sendPeerMessage)
+			uni.$off('updatePageUserList', this.updatePage)
+		},
+		computed: {
+			...mapGetters([
+				'message_list',
+				'userInfo',
+				'txIm'
+			]),
+			isShowAddBtn() {
+				if (!this.isfRromAdd) return false
+				return this.dataList.some(item => item._isadd)
+			}
+		},
+		methods: {
+			...mapMutations([
+				"setCropUser",
+				"pushSendMessage",
+				"addMessage",
+				"chageSendMesState",
+				"setCurrentUser"
+			]),
+			sendPeerMessage(res) {
+				if (res.code == 0 || res.code == 4) {
+					if (res.code == 4) this.pushMessage(this.sendData)
+					uni.hideLoading()
+					uni.navigateBack({
+						delta: 2
+					})
+				} else {
+					this.chageSendMesState()
+					console.log("发送失败")
+				}
+			},
+			pushMessage(data) {
+				if (!data.message) return
+				let targetUsrId = this.shareUser.id
+				get_user_info({
+					userid: targetUsrId
+				}).then(res => {
+					let title = res.data.nickname
+					let cid = res.data.uinpush.cid
+					let platform = res.data.uinpush.phonemodel
+					if (cid && platform && this.userInfo.uinpush.cid != cid) {
+						push_message({
+							body: data.message.type == 0 ? data.message.msg : '图片',
+							title,
+							cid,
+							click_type: "none",
+							pushType: platform,
+							url: ""
+						}).then(res => {
+							if (res.code == 0) {
+								console.log(res, "推送成功")
+							} else {
+								console.log(res, "推送失败")
+							}
+						}).catch(err => {
+							console.log(err, "推送失败")
+						})
+					}
+				}).catch(err => {
+					console.error(err)
+				})
+
+			},
+			confirm() {
+				uni.showLoading({
+					title: "转发中..."
+				})
+				this.$refs.popupForward.close()
+				uni.getImageInfo({
+					src: this.shareImg,
+					success: (res) => {
+						if (this.message_list[this.shareUser.id]) {
+							this.setCurrentUser(this.message_list[this.shareUser.id])
+						} else {
+							this.setCurrentUser({
+								userInfo: {
+									userid: this.shareUser.id,
+									nickname: this.shareUser.nickname,
+									avatar: this.shareUser.avatarimg
+								},
+								message: []
+							})
+						}
+
+						uni.saveFile({
+							tempFilePath: res.path,
+							success: (result) => {
+								let savedFilePath = result.savedFilePath;
+								this.sendData = {
+									img: `file://${plus.io.convertLocalFileSystemURL(savedFilePath)}`,
+									width: res.width
+								}
+
+								this.txIm.sendImage(plus.io.convertLocalFileSystemURL(res.path), this.shareUser.id + '', true, true, true)
+
+								this.sendData = {
+									userid: this.shareUser.id,
+									userInfo: {
+										userid: this.shareUser.id,
+										nickname: this.shareUser.nickname,
+										avatar: this.shareUser.avatarimg,
+									},
+									message: {
+										date: new Date().getTime(),
+										id: new Date().getTime() + '' + this.userInfo.id,
+										type: 1,
+										isSelf: true,
+										isRead: true,
+										img: this.sendData.img,
+										width: this.sendData.width,
+										isSelf: true,
+										sendErr: false
+									}
+								}
+								this.addMessage(this.sendData)
+								this.pushSendMessage({
+									userid: this.sendData.userid,
+									mid: this.sendData.message.id
+								})
+							}
+						});
+
+					}
+				})
+
+			},
+			share(user) {
+				this.shareUser = user
+				this.$refs.popupForward.open()
+			},
+			addUserHandle(data, img) {
+				if (!data.images || !data.images.length) {
+					uni.showToast({
+						title: "该用户没有上传照片！",
+						icon: "none"
+					})
+					return
+				}
+				this.setCropUser(data)
+				uni.navigateTo({
+					url: `/pages/cropImg/cropImg?img=${img}`
+				});
+			},
+			toUsetInfo(data) {
+				uni.navigateTo({
+					url: `/pages/user/info?userid=${data.userid}`
+				});
+			},
+			getList({
+				refresh = false
+			} = {}) {
+				if (!refresh && this.prevPage == this.page) return
+				this.prevPage = this.page
+				this.empty = false
+				screen_user({
+					"page": this.page,
+					"rows": this.rows,
+					...this.param
+				}).then(res => {
+					let data = res.data || []
+					data = data.map(item => {
+						return {
+							...item,
+							userid: item.id,
+							_isadd: this.authority_users_id && this.authority_users_id.length && this.authority_users_id.includes(item.id) ?
+								true : false
+						}
+					})
+					if (refresh) {
+						this.dataList = []
+						this.refreshEnd()
+					}
+					this.dataList = this.dataList.concat(this.restData(data))
+					this.offDown()
+				}).catch(err => {
+					console.error(err)
+				})
+			},
+			restData(data) {
+				let c = []
+				for (let i = 0; i < data.length; i++) {
+					data[i].info = true
+					let birthday = formatDate(data[i].birthday)
+					data[i].birthday = birthday
+					data[i].constellation = getConstellation(birthday)
+					data[i].hobby = data[i].hobby.map(item => item.hobby).join("/")
+					data[i].isSelf = !!data[i].SignupinviteInfo
+					data[i].starttime = formatDate(data[i].starttime).split(" ")[0]
+					data[i].endtime = formatDate(data[i].endtime).split(" ")[0]
+					if (data[i].nowtime && data[i].addtime) {
+						let nowtime = formatDate(data[i].nowtime)
+						let addtime = formatDate(data[i].addtime)
+						data[i].timebefor = timeDis(addtime, nowtime)
+					}
+					c.push(data[i])
+					if (data[i].SignupinviteInfo) {
+						c.push(...this.restData(data[i].SignupinviteInfo))
+					}
+				}
+				return c
+			},
+			goDetail(data) {
+				uni.navigateTo({
+					url: `/pages/user/info?userid=${data.userid}`
+				});
+			},
+			close(index) {
+				uni.showModal({
+					content: '是否删除本条信息？',
+					success: (res) => {
+						if (res.confirm) {
+							this.newsList[index1].data.splice(index2, 1);
+						}
+					}
+				})
+			},
+			loadMore() {
+				if (this.empty || this.noMore) return
+				this.page++
+				this.getList();
+			},
+			ontabchange(e) {
+				let index = e.target.current || e.detail.current;
+				this.switchTab(index);
+			},
+			switchTab(index) {
+				if (this.newsList[index].data.length === 0) {
+					this.getList(index);
+				}
+
+				if (this.tabIndex === index) {
+					return;
+				}
+
+				// 缓存 tabId
+				if (this.newsList[this.tabIndex].data.length > MAX_CACHE_DATA) {
+					let isExist = this.cacheTab.indexOf(this.tabIndex);
+					if (isExist < 0) {
+						this.cacheTab.push(this.tabIndex);
+						//console.log("cache index:: " + this.tabIndex);
+					}
+				}
+
+				this.tabIndex = index;
+				this.scrollInto = this.tabBars[index].id;
+
+				// 释放 tabId
+				if (this.cacheTab.length > MAX_CACHE_PAGE) {
+					let cacheIndex = this.cacheTab[0];
+					this.clearTabData(cacheIndex);
+					this.cacheTab.splice(0, 1);
+					//console.log("remove cache index:: " + cacheIndex);
+				}
+			},
+			clearTabData(e) {
+				this.dataList.length = 0;
+				this.loadingText = "加载更多...";
+			},
+			refreshData() {},
+			onrefresh() {
+				if (!this.refreshFlag) {
+					return;
+				}
+				this.refreshing = true;
+				this.prevPage = 0
+				this.page = 1
+				this.refreshText = "正在刷新...";
+				this.getList({
+					refresh: true
+				})
+			},
+			onpullingdown(e) {
+				if (this.refreshing || this.pulling) {
+					return;
+				}
+				if (Math.abs(e.pullingDistance) > Math.abs(e.viewHeight)) {
+					this.refreshFlag = true;
+					this.refreshText = "释放立即刷新";
+					this.empty = false
+					//this.noMore = false
+				} else {
+					this.refreshFlag = false;
+					this.refreshText = "下拉可以刷新";
+				}
+			},
+			refreshEnd() {
+				setTimeout(() => {
+					// this.unpdateIng = false
+					this.refreshData();
+					this.pulling = true;
+					this.refreshing = false;
+					this.refreshFlag = false;
+					this.refreshText = "已刷新";
+					setTimeout(() => { // TODO fix ios和Android 动画时间相反问题
+						this.pulling = false;
+					}, 500);
+				}, 2000);
+			},
+			offDown() {
+				if (!this.dataList.length) {
+					this.empty = true
+				} else {
+					this.empty = false
+				}
+				if (this.dataList.length < this.page * this.rows) {
+					this.noMore = true
+				} else {
+					this.noMore = false
+				}
+			},
+			editHandel(user) {
+				uni.navigateTo({
+					url: `/pages/service/compile?userid=${user.id}&sex=${user.sex}&usertype=1`
+				})
+			},
+			updatePage(param) {
+				this.prevPage = 0
+				this.page = 1
+				this.param = Object.assign({}, this.param, param)
+				this.getList({
+					refresh: true
+				})
+			},
+			updateUserInfo(user) {
+				let index = this.dataList.findIndex(item => item.id == user.id)
+				if (index > 0) {
+					this.dataList[index] =
+						this.$set(this.dataList, index, this.restData([user])[0])
+				}
+			},
+			backHandle() {
+				let users = this.dataList.filter(item => item._isadd)
+				uni.navigateBack({
+					delta: 1
+				});
+				uni.$emit('addUsers', users)
+			},
+			prevImg(imgs, current) {
+				let urls = imgs.map(item => item.image)
+				uni.previewImage({
+					urls,
+					current
+				});
+			}
+		}
+	}
+</script>
+<style scoped>
+	/* #ifndef APP-PLUS */
+	page {
+		width: 100%;
+		min-height: 100%;
+		display: flex;
+	}
+
+	/* #endif */
+
+	.tabs {
+		flex: 1;
+		flex-direction: column;
+		overflow: hidden;
+		background-color: white;
+		/* #ifdef MP-ALIPAY || MP-BAIDU */
+		height: 100vh;
+		/* #endif */
+	}
+
+	.tab-group {
+		display: flex;
+		flex-direction: row;
+		align-items: flex-start;
+		justify-content: space-between;
+		align-items: flex-start;
+		padding-left: 24rpx;
+		padding-right: 24rpx;
+	}
+
+	.icon-btn {
+		width: 30rpx;
+		height: 30rpx;
+		margin: 24rpx;
+	}
+
+	.scroll-h {
+		width: 550rpx;
+		flex-direction: row;
+		/* #ifndef APP-PLUS */
+		white-space: nowrap;
+		/* #endif */
+		/* flex-wrap: nowrap; */
+		/* border-color: #cccccc;
+		border-bottom-style: solid;
+		border-bottom-width: 1px; */
+		margin-bottom: 10px;
+	}
+
+	.uni-tab-item {
+		/* #ifndef APP-PLUS */
+		display: inline-block;
+		/* #endif */
+		flex-wrap: nowrap;
+	}
+
+	.uni-tab-group {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+	}
+
+	.uni-tab-item-title {
+		width: 120rpx;
+		text-align: center;
+		color: #555;
+		font-size: 36rpx;
+		height: 80rpx;
+		line-height: 80rpx;
+		flex-wrap: nowrap;
+		/* #ifndef APP-PLUS */
+		white-space: nowrap;
+		/* #endif */
+	}
+
+	.border-img {
+		width: 112rpx;
+		height: 20rpx;
+	}
+
+	.uni-tab-item-title-active {
+		color: #e1b893;
+		font-size: 48rpx;
+		font-weight: 600;
+	}
+
+	.date-group {
+		flex-direction: row;
+		align-items: center;
+		padding-left: 24rpx;
+		padding-right: 24rpx;
+		margin-bottom: 10px;
+	}
+
+	.date {
+		font-size: 26rpx;
+		color: #999999;
+		width: 200rpx;
+	}
+
+	.date-line {
+		height: 1rpx;
+		background-color: #cccccc;
+		width: 500rpx;
+	}
+
+	.swiper-box {
+		flex: 1;
+	}
+
+	.swiper-item {
+		flex: 1;
+		flex-direction: row;
+	}
+
+	.scroll-v {
+		flex: 1;
+		/* #ifndef MP-ALIPAY */
+		flex-direction: column;
+		/* #endif */
+		width: 750rpx;
+	}
+
+	.update-tips {
+		position: absolute;
+		left: 0;
+		top: 41px;
+		right: 0;
+		padding-top: 5px;
+		padding-bottom: 5px;
+		background-color: #FDDD9B;
+		align-items: center;
+		justify-content: center;
+		text-align: center;
+	}
+
+	.update-tips-text {
+		font-size: 14px;
+		color: #ffffff;
+	}
+
+	.refresh {
+		width: 750rpx;
+		height: 64px;
+		justify-content: center;
+	}
+
+	.refresh-view {
+		flex-direction: row;
+		flex-wrap: nowrap;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.refresh-icon {
+		width: 30px;
+		height: 30px;
+		transition-duration: .5s;
+		transition-property: transform;
+		transform: rotate(0deg);
+		transform-origin: 15px 15px;
+	}
+
+	.refresh-icon-active {
+		transform: rotate(180deg);
+	}
+
+	.loading-icon {
+		width: 20px;
+		height: 20px;
+		margin-right: 5px;
+		color: #999999;
+	}
+
+	.loading-text {
+		margin-left: 2px;
+		font-size: 16px;
+		color: #999999;
+	}
+
+	.loading-more {
+		align-items: center;
+		justify-content: center;
+		padding-top: 10px;
+		padding-bottom: 10px;
+		text-align: center;
+		background-color: #F8F8F8;
+	}
+
+	.loading-more-text {
+		font-size: 28rpx;
+		color: #999;
+	}
+
+	.sign-btn-group {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+	}
+
+	.sign-btn {
+		background-color: #e1b893;
+		width: 128rpx;
+		height: 48rpx;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: 30rpx;
+	}
+
+	.btnDfaultBg {
+		background-color: #e6e6e6;
+	}
+
+	.sign-btn-text {
+		color: #595757;
+		font-size: 26rpx;
+		width: 128rpx;
+		height: 48rpx;
+		text-align: center;
+		line-height: 48rpx;
+	}
+
+	.num-text {
+		font-size: 24rpx;
+		color: #e1b893;
+		margin-top: 5px;
+	}
+
+	.numDefaultColor {
+		color: #999999;
+	}
+
+	.t_line_1 {
+		width: 750rpx;
+		border-top-color: #f0f0f0;
+		border-top-width: 2rpx;
+	}
+
+	.empty {
+		background-color: white;
+	}
+
+	.footer-btn-group {
+		padding: 20rpx;
+		background-color: rgba(255, 255, 255, .2);
+	}
+
+	.warning-btn {
+		background-color: #edd0b2;
+		height: 40px;
+		line-height: 40px;
+		border-radius: 50rpx;
+		flex: 1;
+		/* #ifndef APP-PLUS */
+		width: 100%;
+		/* #endif */
+		border-color: rgba(0, 0, 0, 0);
+	}
+
+	.warning-btn-text {
+		color: #606266;
+		line-height: 44rpx;
+	}
+
+	.invite-photo-wrap {
+		width: 300rpx;
+		display: flex;
+		flex-direction: row;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: flex-start;
+	}
+
+	.invite-photo {
+		width: 100rpx;
+		height: 100rpx;
+		margin-left: 10rpx;
+		margin-top: 10rpx;
+	}
+
+	.invite-photo-img {
+		width: 100rpx;
+		height: 100rpx;
+	}
+</style>

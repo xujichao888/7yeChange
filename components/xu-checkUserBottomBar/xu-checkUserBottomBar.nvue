@@ -1,0 +1,57 @@
+<template>
+	<view class="bar" :class="{leftborder:hasRightBorder}" @click="handleClick">
+		<view class="centers">
+			<image :style="{width:imgWidth}" class="imgs" :src="IconImgUrl" mode="widthFix"></image>
+			<text class="texts">{{text}}</text>
+		</view>
+	</view>
+</template>
+
+<script>
+	export default {
+		props:{
+			hasRightBorder:{
+				type:Boolean,
+				default:false
+			},
+			IconImgUrl:String,
+			text:String,
+			type:String,
+			imgWidth:String
+		},
+		methods:{
+			handleClick(){
+				this.$emit('clickHandle')
+			}
+		}
+	}
+</script>
+
+<style scoped>
+	.bar{
+		width: 375rpx;
+		height: 110rpx;
+		background-color: #061A2C;
+		border-top-color: #182F43;
+		border-top-width: 3rpx;
+		border-style: solid;
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+	}
+	.leftborder{
+		border-right-color: #182F43;
+		border-right-width: 3rpx;
+		border-style: solid;
+	}
+	.centers{
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+	}
+	.texts{
+		font-size: 32rpx;
+		color:#7060DC;
+		margin-left: 10rpx;
+	}
+</style>

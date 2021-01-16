@@ -1,0 +1,1736 @@
+<template>
+	<view :style="style" class="tabs" :class="{'bg-width':tabIndex == 1}">
+		<view>
+			<view class="status_bar">
+				<!-- 这里是状态栏 -->
+			</view>
+			<view>&nbsp;</view>
+		</view>
+		<view class="tab-group" :style="{'padding-top':(12+pdt)+'px'}">
+			<scroll-view id="tab-bar" class="scroll-h" :scroll-x="true" :show-scrollbar="false" :scroll-into-view="scrollInto">
+				<view v-for="(tab,index) in tabBars" :key="tab.id" class="uni-tab-item" :id="tab.id" :data-current="index" @click="ontabtap">
+					<div class="uni-tab-group">
+						<text class="uni-tab-item-title" :class="tabIndex==index ? 'uni-tab-item-title-active' : ''">{{tab.name}}</text>
+						<image v-if="tabIndex==index" class="border-img" src="/static/icons/index/tab_select.png"></image>
+					</div>
+				</view>
+			</scroll-view>
+			<image v-if="tabIndex == 0 && userInfo.type > 0" @click="toUserList" class="icon-btn" src="/static/icons/index/comments@3x.png"></image>
+		</view>
+		<swiper :current="tabIndex" class="swiper-box" style="flex: 1;" :duration="300" @change="ontabchange">
+			<swiper-item class="swiper-item">
+				<user-item></user-item>
+			</swiper-item>
+			<swiper-item class="swiper-item">
+				<!-- #ifdef APP-NVUE -->
+				<list class="scroll-v list" enableBackToTop="true" scroll-y loadmoreoffset="15">
+					<cell>
+						<publish></publish>
+					</cell>
+				</list>
+				<!-- #endif -->
+				<!-- #ifndef APP-NVUE -->
+				<scroll-view class="scroll-v list" enableBackToTop="true" scroll-y>
+					<publish></publish>
+				</scroll-view>
+				<!-- #endif -->
+			</swiper-item>
+			<swiper-item class="swiper-item">
+				<!-- #ifdef APP-NVUE -->
+				<list ref="exlist" class="scroll-v list" enableBackToTop="true" scroll-y loadmoreoffset="15" @loadmore="loadMore">
+					<refresh class="refresh" @refresh="onrefresh(index1)" @pullingdown="onpullingdown" :display="newsList[examineStatus + 1].refreshing ? 'show' : 'hide'">
+						<div class="refresh-view">
+							<image class="refresh-icon" :src="refreshIcon" :style="{width: (newsList[examineStatus + 1].refreshing || pulling) ? 0: '30px'}"
+							 :class="{'refresh-icon-active': newsList[examineStatus + 1].refreshFlag}"></image>
+							<loading-indicator class="loading-icon" animating="true" v-if="newsList[examineStatus + 1].refreshing"></loading-indicator>
+							<text class="loading-text">{{newsList[examineStatus + 1].refreshText}}</text>
+						</div>
+					</refresh>
+					<cell class="tab-bar-group examine-bar-group">
+						<view v-for="(tab,index) in examineTab" v-if="tab.id != 1" :key="tab.id" class="uni-tab-examine-item" :class="{'first-examine' : index == 0,'last-examine': index == examineTab.length -1,'examine-active': examineStatus == tab.id}"
+						 :id="tab.id">
+							<text class="uni-tab-examine-title" @click="ontabtapExamine(tab.id)">{{tab.name}}</text>
+						</view>
+					</cell>
+					<cell class="examine-group" v-for="(item,index) in newsList[examineStatus + 1].data" :key="item.id">
+						<view class="examine-item">
+							<text class="examine-content">{{item.content}}</text>
+							<view>
+								<text class="examine-nickname">{{item.nickname}}</text>
+								<text class="examine-date">{{item.addtime}}</text>
+							</view>
+						</view>
+						<view class="examine-btn-group">
+							<text class="examine-btn examine-pass" v-if="item.status == 0" @click="passFeed(item, index)">通过审核</text>
+							<text class="examine-btn examine-shield" v-if="item.status == 0 || item.status == 1" @click="shield(item, index)">屏蔽</text>
+							<text class="examine-btn examine-nobg" v-if="item.status == 2">已屏蔽</text>
+							<text class="examine-btn examine-jump" @click="feedInfo(item.feedid)">查看原文</text>
+						</view>
+					</cell>
+					<cell class="loading-more" v-if="newsList[examineStatus + 1].empty">
+						<!-- <text class="loading-more-text">暂无数据</text> -->
+						<image class="7ye-empty-content" src="/static/img/empty.png"></image>
+					</cell>
+					<cell class="loading-more" v-else-if="newsList[examineStatus + 1].noMore && newsList[examineStatus + 1].data.length > 4">
+						<text class="loading-more-text">没有更多了~</text>
+					</cell>
+					<cell class="loading-more" v-else-if="newsList[examineStatus + 1].data.length > 4">
+						<text class="loading-more-text">{{newsList[examineStatus + 1].loadingText}}</text>
+					</cell>
+				</list>
+				<!-- #endif -->
+			</swiper-item>
+			<swiper-item class="swiper-item">
+				<!-- #ifdef APP-NVUE -->
+				<list class="scroll-v list" enableBackToTop="true" scroll-y loadmoreoffset="15">
+					<refresh class="refresh" @refresh="onrefresh" @pullingdown="onpullingdown" :display="refreshing ? 'show' : 'hide'">
+						<div class="refresh-view">
+							<image class="refresh-icon" :src="refreshIcon" :style="{width: (refreshing || pulling) ? 0: '30px'}" :class="{'refresh-icon-active': refreshFlag}"></image>
+							<loading-indicator class="loading-icon" animating="true" v-if="refreshing"></loading-indicator>
+							<text class="loading-text">{{refreshText}}</text>
+						</div>
+					</refresh>
+					<cell>
+						<view class="table" v-if="statisticData.total && statisticData.total >=0">
+							<view class="count">
+								<text class="t-label">总注册数</text>
+								<text class="count-val">{{statisticData.total}}</text>
+							</view>
+							<view class="t-body">
+								<view class="t-header">
+									<view class="t-h-r w-137">
+
+									</view>
+									<view class="t-h-r w-274 border-left">
+										<text class="t-label weight green">男</text>
+										<view class="column border-top">
+											<text class="weight w-137 t-label border-right">本日</text>
+											<text class="weight w-137 t-label">总数</text>
+										</view>
+									</view>
+									<view class="t-h-r w-274 border-left">
+										<text class="t-label weight red">女</text>
+										<view class="column border-top">
+											<text class="weight w-137 t-label border-right">本日</text>
+											<text class="weight w-137 t-label">总数</text>
+										</view>
+									</view>
+								</view>
+								<view class="column">
+									<text class="w-137 t-label border-top h-62">合计</text>
+									<view class="t-h-r border-left">
+										<view class="column border-top">
+											<text class="w-137 t-label border-right">{{statisticData.mannew}}</text>
+											<text class="w-137 t-label">{{statisticData.mantotal}}</text>
+										</view>
+									</view>
+									<view class="t-h-r border-left">
+										<view class="column border-top">
+											<text class="w-137 t-label border-right">{{statisticData.womannew}}</text>
+											<text class="w-137 t-label">{{statisticData.womantotal}}</text>
+										</view>
+									</view>
+								</view>
+								<view class="column">
+									<text class="w-137 t-label border-top h-62 size-26">已认证/VIP</text>
+									<view class="t-h-r border-left">
+										<view class="column border-top">
+											<text class="w-137 t-label border-right">{{statisticData.manstatusnow}}</text>
+											<text class="w-137 t-label">{{statisticData.manstatustotal}}</text>
+										</view>
+									</view>
+									<view class="t-h-r border-left">
+										<view class="column border-top">
+											<text class="w-137 t-label border-right">{{statisticData.womanstatusnow}}</text>
+											<text class="w-137 t-label">{{statisticData.womanstatustotal}}</text>
+										</view>
+									</view>
+								</view>
+								<view class="column">
+									<text class="w-137 t-label border-top h-62">VIP1</text>
+									<view class="t-h-r border-left">
+										<view class="column border-top">
+											<text class="w-137 t-label border-right">{{statisticData.vip1}}</text>
+											<text class="w-137 t-label">{{statisticData.vip1total}}</text>
+										</view>
+									</view>
+									<view class="t-h-r border-left">
+										<view class="column border-top">
+											<text class="w-137 t-label border-right"></text>
+											<text class="w-137 t-label"></text>
+										</view>
+									</view>
+								</view>
+								<view class="column">
+									<text class="w-137 t-label border-top h-62">VIP2</text>
+									<view class="t-h-r border-left">
+										<view class="column border-top">
+											<text class="w-137 t-label border-right">{{statisticData.vip2}}</text>
+											<text class="w-137 t-label">{{statisticData.vip2}}</text>
+										</view>
+									</view>
+									<view class="t-h-r border-left">
+										<view class="column border-top">
+											<text class="w-137 t-label border-right"></text>
+											<text class="w-137 t-label"></text>
+										</view>
+									</view>
+								</view>
+								<view class="column">
+									<text class="w-137 t-label border-top h-62">VIP3</text>
+									<view class="t-h-r border-left">
+										<view class="column border-top">
+											<text class="w-137 t-label border-right">{{statisticData.vip3}}</text>
+											<text class="w-137 t-label">{{statisticData.vip3}}</text>
+										</view>
+									</view>
+									<view class="t-h-r border-left">
+										<view class="column border-top">
+											<text class="w-137 t-label border-right"></text>
+											<text class="w-137 t-label"></text>
+										</view>
+									</view>
+								</view>
+								<view class="column">
+									<text class="w-137 t-label border-top h-62">VIP4</text>
+									<view class="t-h-r border-left">
+										<view class="column border-top">
+											<text class="w-137 t-label border-right">{{statisticData.vip4}}</text>
+											<text class="w-137 t-label">{{statisticData.vip4total}}</text>
+										</view>
+									</view>
+									<view class="t-h-r border-left">
+										<view class="column border-top">
+											<text class="w-137 t-label border-right"></text>
+											<text class="w-137 t-label"></text>
+										</view>
+									</view>
+								</view>
+							</view>
+						</view>
+					</cell>
+				</list>
+				<!-- #endif -->
+				<!-- #ifndef APP-NVUE -->
+				<scroll-view class="scroll-v list" enableBackToTop="true" scroll-y>
+					<view class="table" v-if="statisticData.total >=0">
+						<view class="count">
+							<text class="t-label">总注册数</text>
+							<text class="count-val">{{statisticData.total}}</text>
+						</view>
+						<view class="t-body">
+							<view class="t-header">
+								<view class="t-h-r w-137">
+
+								</view>
+								<view class="t-h-r border-left">
+									<text class="t-label weight green">
+										男
+									</text>
+									<view class="column border-top">
+										<text class="weight w-137 t-label border-right">本日</text>
+										<text class="weight w-137 t-label">总数</text>
+									</view>
+								</view>
+								<view class="t-h-r border-left">
+									<text class="t-label weight red">
+										女
+									</text>
+									<view class="column border-top">
+										<text class="weight w-137 t-label border-right">本日</text>
+										<text class="weight w-137 t-label">总数</text>
+									</view>
+								</view>
+							</view>
+							<view class="column">
+								<text class="w-137 t-label border-top h-62">合计</text>
+								<view class="t-h-r border-left">
+									<view class="column border-top">
+										<text class="w-137 t-label border-right">{{statisticData.mannew}}</text>
+										<text class="w-137 t-label">{{statisticData.mantotal}}</text>
+									</view>
+								</view>
+								<view class="t-h-r border-left">
+									<view class="column border-top">
+										<text class="w-137 t-label border-right">{{statisticData.womannew}}</text>
+										<text class="w-137 t-label">{{statisticData.womantotal}}</text>
+									</view>
+								</view>
+							</view>
+							<view class="column">
+								<text class="w-137 t-label border-top h-62 size-26">已认证/VIP</text>
+								<view class="t-h-r border-left">
+									<view class="column border-top">
+										<text class="w-137 t-label border-right">{{statisticData.manstatusnow}}</text>
+										<text class="w-137 t-label">{{statisticData.manstatustotal}}</text>
+									</view>
+								</view>
+								<view class="t-h-r border-left">
+									<view class="column border-top">
+										<text class="w-137 t-label border-right">{{statisticData.womanstatusnow}}</text>
+										<text class="w-137 t-label">{{statisticData.womanstatustotal}}</text>
+									</view>
+								</view>
+							</view>
+							<view class="column">
+								<text class="w-137 t-label border-top h-62">VIP1</text>
+								<view class="t-h-r border-left">
+									<view class="column border-top">
+										<text class="w-137 t-label border-right">{{statisticData.vip1}}</text>
+										<text class="w-137 t-label">{{statisticData.vip1total}}</text>
+									</view>
+								</view>
+								<view class="t-h-r border-left">
+									<view class="column border-top">
+										<text class="w-137 t-label border-right"></text>
+										<text class="w-137 t-label"></text>
+									</view>
+								</view>
+							</view>
+							<view class="column">
+								<text class="w-137 t-label border-top h-62">VIP2</text>
+								<view class="t-h-r border-left">
+									<view class="column border-top">
+										<text class="w-137 t-label border-right">{{statisticData.vip2}}</text>
+										<text class="w-137 t-label">{{statisticData.vip2}}</text>
+									</view>
+								</view>
+								<view class="t-h-r border-left">
+									<view class="column border-top">
+										<text class="w-137 t-label border-right"></text>
+										<text class="w-137 t-label"></text>
+									</view>
+								</view>
+							</view>
+							<view class="column">
+								<text class="w-137 t-label border-top h-62">VIP3</text>
+								<view class="t-h-r border-left">
+									<view class="column border-top">
+										<text class="w-137 t-label border-right">{{statisticData.vip3}}</text>
+										<text class="w-137 t-label">{{statisticData.vip3}}</text>
+									</view>
+								</view>
+								<view class="t-h-r border-left">
+									<view class="column border-top">
+										<text class="w-137 t-label border-right"></text>
+										<text class="w-137 t-label"></text>
+									</view>
+								</view>
+							</view>
+							<view class="column">
+								<text class="w-137 t-label border-top h-62">VIP4</text>
+								<view class="t-h-r border-left">
+									<view class="column border-top">
+										<text class="w-137 t-label border-right">{{statisticData.vip4}}</text>
+										<text class="w-137 t-label">{{statisticData.vip4total}}</text>
+									</view>
+								</view>
+								<view class="t-h-r border-left">
+									<view class="column border-top">
+										<text class="w-137 t-label border-right"></text>
+										<text class="w-137 t-label"></text>
+									</view>
+								</view>
+							</view>
+						</view>
+					</view>
+				</scroll-view>
+				<!-- #endif -->
+			</swiper-item>
+			<swiper-item class="swiper-item">
+				<!-- #ifdef APP-NVUE -->
+				<list class="scroll-v list" enableBackToTop="true" id="list-view" scroll-y loadmoreoffset="15" :scrollTop="scrollTop"
+				 @click="hideKeyBard">
+					<cell class="text-group" id="list-group">
+						<view class="mess-title">
+							<text class="mess-text">欢迎语</text>
+							<view class="" @click.prevent="showPoup">
+								<uni-icons type="plusempty" size="24" color="#aaaaaa"></uni-icons>
+							</view>
+						</view>
+						<view>
+							<view class="" v-for="(item,index) in serviceList" :key="item.content + '_' + index">
+								<view class="text-wrap" v-if="item.type == 'text_msg'" @longpress.prevent="delComment($event,item, index)"
+								 @click.prevent="updateComment($event,'text_msg_' + index, item)">
+									<text :id="'text_msg_' + index" :ref="'text_msg_' + index" class="text_msg" style="min-height:200rpx">{{item.content}}</text>
+								</view>
+								<view class="text-wrap" v-if="item.type == 'image_msg'" @longpress.prevent="delComment($event,item, index)"
+								 @click.prevent="updateComment($event,'text_msg_' + index, item)">
+									<image @click.prevent="prevImg($event,item.content)" mode="aspectFit" class="image_msg_view" :ref="'image_msg_' + index"
+									 :src="item.content"></image>
+								</view>
+							</view>
+						</view>
+						<view class="text_msg text-wrap" style="height:200rpx" v-if="messType == 'text_msg' && textarearef == 'text_msg_add'">
+							<textarea :show-confirm-bar="false" @focus="inputFocus" :adjust-position="false" id="text_msg_add" ref="text_msg_add"
+							 :auto-blur="true" @keyboardheightchange="keyboardheightchange($event, 'text_msg_add')" class="text_msg" style="height:200rpx"
+							 :placeholder="placeholder" v-model="messContent" auto-height />
+							</view>
+						<view class="text-wrap" v-if="messType == 'image_msg' && isAdd">
+							<!-- <image mode="aspectFit" class="image_msg" v-if="messContent" :src="messContent"></image> -->
+							<view class="image_msg" id="image_msg_add">
+								<uni-icons type="plusempty" size="32" color="#aaaaaa" @click="chooseImg"></uni-icons>
+							</view>
+						</view>
+					</cell>
+				</list>
+				<!-- #endif -->
+			</swiper-item>
+		</swiper>
+		<uni-popup ref="popupService" type="share" :maskClick="false">
+		    <view class="popup-service-group" :style="{'padding-bottom':(12+pdt)+'px'}">
+		    	<text @click="selectServiceType($event,item.type)" class="popup-service-item" :class="'popup-service-item-' + item.type" v-for="item in messList" :key="item.type">{{item.name}}</text>
+				<text @click="selectServiceType($event,'cancel')" class="popup-service-item popup-service-item-cancel">取消</text>
+		    </view>
+		</uni-popup>
+		<view class="keyboard-input" :style="{bottom:keyboardBottom}">
+			<view class="text_input-group">
+				<textarea :show-confirm-bar="false" @focus="keyboardFocus" v-if="textarearef !== 'text_msg_add'" :adjust-position="false" ref="text_msg_input" :auto-blur="true" @keyboardheightchange="keyboardheightchange($event, 'text_msg_input')" class="text_msg text_input" placeholder="请输入..." v-model="messContent" auto-height />
+			</view>
+			<view class="keyboard-btn">
+				<image @click="addTag($event,item)" v-for="item in btns" :key="item.url" class="url-btn" :src="item.icon"></image>
+				<text class="save-btn" @click="saveMess">保存</text>
+			</view>
+		</view>
+		<upload-progress :show="progressShow" :percent='percent' @uploadEnd="uploadEnd"></upload-progress>
+	</view>
+</template>
+<script>
+	import {
+		baseUrl
+	} from "@/common/baseUrl.js"
+	import {
+		mapMutations,
+		mapGetters
+	} from 'vuex'
+	import uploadProgress from '@/components/upload-progress/progress.vue'
+	import userItem from './components/userItem.nvue';
+	import publish from './components/publish.nvue';
+	import {
+		formatDate,
+		timeDis,
+		compressImage,
+	} from '@/utils/param.js'
+	import {
+		statistics_list,
+		get_service_data,
+		add_service_mess,
+		update_service_mess,
+		del_service_mess,
+		get_examine,
+		change_feecomment_status
+	} from "@/common/http.nvue.api.js"
+	
+	export default {
+		components: {
+			userItem,
+			publish,
+			uploadProgress
+		},
+		data() {
+			return {
+				newsList:[],
+				examineStatus:0,
+				examineTab:[
+					{
+						id:-1,
+						name:'全部'
+					},
+					{
+						id:0,
+						name:'待处理'
+					},
+					{
+						id:1,
+						name:'已通过'
+					},
+					{
+						id:2,
+						name:'已屏蔽'
+					}
+				],
+				loadingText: '加载更多...',
+				prevPage:0,
+				noMore:false,
+				empty:false,
+				examineType:0,
+				examinePage:1,
+				examineRows:10,
+				examineList:[],
+				placeholder:"请输入...",
+				systemInfo:{},
+				pdt:0,
+				isHide:false,
+				isAdd:false,
+				progressShow:false,
+				percent:0,
+				uploadTask:null,
+				updateCurrent:null,
+				cursor:0,
+				dom:null,
+				scrollTop:0,
+				keyboardBottom:"-5000px",
+				windowHeight:0,
+				statusBarHeight:0,
+				style: {
+					"transform": "translateY(0)"
+				},
+				textarearef:'',
+				messType:"",
+				messContent:"",
+				messList:[
+					{
+						type:'text_msg',
+						name:"文本"
+					},
+					{
+						type:'image_msg',
+						name:"图片"
+					}
+				],
+				btns:[
+					{
+						url:'[点此完善信息](night7://ui?route=user/info&test=123)',
+						icon:'/static/img/tag_icon_info.png'
+					}
+				],
+				serviceList:[],
+				statisticData:{},
+				pulling: true,
+				refreshing: false,
+				refreshFlag: false,
+				refreshText: "",
+				tabIndex: 0,
+				tabBars: [{
+					name: '客服',
+					id: 'tuijian'
+				}, {
+					name: '发布',
+					id: 'yaoyue'
+				}, {
+					name: '审核',
+					id: 'shenhe'
+				},{
+					name: '统计',
+					id: 'fankui'
+				},{
+					name: '设置',
+					id: 'set'
+				}],
+				scrollInto: "",
+				showTips: false,
+				navigateFlag: false,
+				pulling: false,
+				refreshIcon: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAMAAABg3Am1AAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAB5QTFRFcHBw3Nzct7e39vb2ycnJioqK7e3tpqam29vb////D8oK7wAAAAp0Uk5T////////////ALLMLM8AAABxSURBVHja7JVBDoAgDASrjqj//7CJBi90iyYeOHTPMwmFZrHjYyyFYYUy1bwUZqtJIYVxhf1a6u0R7iUvWsCcrEtwJHp8MwMdvh2amHduiZD3rpWId9+BgPd7Cc2LIkPyqvlQvKxKBJ//Qwq/CacAAwDUv0a0YuKhzgAAAABJRU5ErkJggg=="
+			}
+		},
+		computed: {
+			...mapGetters([
+				'userInfo'
+			])
+		},
+		onShow() {
+			this.isHide = false
+			let that = this
+			uni.showTabBar()
+			uni.getSystemInfo({
+				success: (res) => {
+					if (res.safeAreaInsets.top >= 44) {
+						that.pdt = 12;
+					}
+				}
+			});
+		},
+		onHide() {
+			this.isHide = true	
+		},
+		onLoad() {
+			this.examineTab.forEach((tabBar) => {
+				this.newsList.push({
+					data: [],
+					empty: false,
+					isLoading: false,
+					refreshText: "",
+					loadingText: '加载更多...',
+					noMore: false,
+					prevPage: 0,
+					examinePage: 1,
+					examineRows: 10
+				});
+			});
+			
+			this.systemInfo = uni.getStorageSync('vuex_system_info')
+			this.statusBarHeight = this.systemInfo.statusBarHeight
+			this.windowHeight = this.systemInfo.windowHeight
+			uni.onKeyboardHeightChange(res => {
+				if(!this.isHide && this.tabIndex == 4){
+					if(res.height < 50){
+						this.cursor = 0
+						if(this.systemInfo.platform == "android"){
+							if(this.$refs['text_msg_add']){
+								this.$refs['text_msg_add'].blur() 
+							}
+							if(this.$refs['text_msg_input']){
+								this.$refs['text_msg_input'].blur() 
+							}
+						}
+						if(this.messContent !== ""){
+							this.messContent = ""
+							if(this.placeholder == "请输入 ...") this.placeholder = "请输入..."
+							else this.placeholder = "请输入 ..."
+							
+						} 
+						this.style = {
+							"transform": "translateY(0)"
+						}
+						this.keyboardBottom = "-5000px"
+					} else {
+						const query = uni.createSelectorQuery().in(this);
+						query.select(`#${this.textarearef}`).boundingClientRect(data => {
+							if(this.windowHeight -  data.bottom  <  res.height){
+								setTimeout(()=>{
+									this.style = {
+										transform: `translateY(-${res.height}px)`
+									}
+								},300)
+							}
+							let sum = this.systemInfo.safeAreaInsets.top + (this.systemInfo.screenHeight - this.systemInfo.windowHeight - this.systemInfo.safeAreaInsets.top)
+							this.keyboardBottom = res.height - sum + 'px'
+						}).exec();
+					}
+				}
+			})
+			this.dom = weex.requireModule('dom')
+			this.init()
+		},
+		methods: {
+			...mapMutations([
+				"addMessage"
+			]),
+			ontabtapExamine(status){
+				if(this.examineStatus != status){
+					
+					let tab = this.newsList[this.examineStatus  + 1];
+					if (tab.refreshing || this.pulling) {
+						return;
+					}
+					this.examineStatus = status
+					let ctab = this.newsList[this.examineStatus  + 1];
+					if(ctab.data.length) return
+					
+					ctab.prevPage = 0
+					ctab.examinePage = 1
+					this.getExamineList({refresh: true})
+				}
+			},
+			passFeed(data, index){
+				uni.showModal({
+					title: '提示',
+					content: '确定通过这个条评论吗？',
+					success: (res) => {
+						if (res.confirm) {
+							change_feecomment_status({
+								id: data.id,
+								status:1
+							}).then(res => {
+								if (res.code == 0) {
+									uni.showToast({
+										title: "已通过！",
+									})
+									let tab = this.newsList[this.examineStatus  + 1];
+									tab.data.splice(index, 1)
+								} else {
+									uni.showToast({
+										title: "通过失败",
+										icon: "none"
+									})
+								}
+							}).catch(err => {
+								console.log(err)
+							})
+						}
+					}
+				});
+			},
+			shield(data, index){
+				uni.showModal({
+					title: '提示',
+					content: '确定屏蔽这个条评论吗？',
+					success: (res) => {
+						if (res.confirm) {
+							change_feecomment_status({
+								id: data.id,
+								status:2
+							}).then(res => {
+								if (res.code == 0) {
+									uni.showToast({
+										title: "已屏蔽！",
+									})
+									data.status = 2
+									
+									let tab = this.newsList[this.examineStatus + 1];
+									tab.data.splice(index, 1)
+									
+									uni.$emit('shield', data)
+								} else {
+									uni.showToast({
+										title: "屏蔽失败",
+										icon: "none"
+									})
+								}
+							}).catch(err => {
+								console.log(err)
+							})
+						}
+					}
+				});
+			},
+			feedInfo(fid){
+				uni.navigateTo({
+					url: `/pages/index/feedInfo?from=service&fid=${fid}`
+				})
+			},
+			loadMore() {
+				let tab = this.newsList[this.examineStatus  + 1];
+				if(tab.empty || tab.noMore) return
+				tab.examinePage ++
+				this.getExamineList();
+			},
+			hideKeyBard(){
+				this.resetMessData()
+			},
+			saveMess(e){
+				if(this.textarearef == "text_msg_add"){
+					this.addServiceMess()
+				} else {
+					this.updateServiceMessage()
+				}
+				e.stopPropagation()
+			},
+			chooseImg(isUpdate){
+				uni.chooseImage({
+				    count: 1, 
+				    sizeType: ['compressed'], //可以指定是原图还是压缩图，默认二者都有
+				    success: async (res) => {
+						//let file = await this.compressImageHandler(res.tempFilePaths[0])
+						let temp =  await uni.compressImage({
+							src: res.tempFilePaths[0],
+							quality: 60,
+						})
+						
+						let file = temp[1].tempFilePath
+						let token = uni.getStorageSync('token')
+						
+						this.uploadTask = uni.uploadFile({
+							url: `${baseUrl}/fileupload/addimg`,
+							timeout:10000,
+							header: {
+								token
+							},
+							files: [
+								{
+									name: "id",
+									uri: file
+								}
+							],
+							success: (res) => {
+								if(res.statusCode && res.statusCode != 200){
+									uni.showToast({
+										title: 'code:' + res.statusCode + '图片上传失败',
+										icon: "none"
+									})
+									this.uploadEnd()
+									return
+								}
+								let result = JSON.parse(res.data)
+								if (result.code == 0) {
+									this.messContent = result.data[0]
+									if(isUpdate) this.updateServiceMessage()
+									else this.addServiceMess() 
+								} else {
+									uni.showToast({
+										title:res.msg,
+										icon:"none"
+									})
+								}
+								this.uploadEnd()
+							},
+							fail(err) {
+								this.uploadEnd()
+								console.error(err)
+							}
+						})
+						this.progressShow = true
+						//this.progressUpdate()
+				    }
+				});
+			},
+			progressUpdate(){
+				if(this.uploadTask){
+					this.uploadTask.onProgressUpdate(res=>{
+						this.percent = res.progress
+						if(this.percent == 100){
+							setTimeout(()=>{
+								this.uploadEnd()
+							},1500)
+						}
+					})
+				}
+			},
+			uploadEnd(){
+				this.progressShow = false
+				setTimeout(()=>{
+					this.percent = 0
+				},300)
+			},
+			async compressImageHandler(src){
+				const tempPath = await compressImage(src,this.systemInfo.platform,this.systemInfo.brand);
+				return tempPath
+			},
+			updateServiceMessage(){
+				if(this.updateCurrent.type == 'text_msg'){
+					uni.showLoading({
+						title:"修改中..."
+					})
+				}
+				update_service_mess({
+					type:this.updateCurrent.type,
+					content:this.messContent,
+					key:"init",
+					id:this.updateCurrent.id
+				}).then(res=>{
+					if(res.code == 0){
+						this.$nextTick(()=>{
+							if(this.updateCurrent.type == 'text_msg'){
+								uni.showToast({
+									title:'修改成功',
+								})
+								uni.hideLoading()
+							}
+							
+							let c = this.serviceList.find(item=>item.id == this.updateCurrent.id)
+							c.content = this.messContent
+							setTimeout(()=>{
+								this.resetMessData()
+							},300)
+						})
+						
+					} else {
+						if(this.updateCurrent.type == 'text_msg')uni.hideLoading()
+						uni.showToast({
+							title:res.msg,
+							icon:"none"
+						})
+					}
+				}).catch(err=>{
+					if(this.updateCurrent.type == 'text_msg')uni.hideLoading()
+					console.log(err)
+				})
+			},
+			addServiceMess(){
+				if(this.messType == 'text_msg'){
+					uni.showLoading({
+						title:"创建中..."
+					})
+				}
+				
+				add_service_mess({
+					type:this.messType,
+					content: this.messContent,
+					key:"init"
+				}).then(res=>{
+					if(this.messType == 'text_msg') uni.hideLoading()
+					if(res.code == 0){
+						if(this.messType == 'text_msg'){
+							uni.showToast({
+								title:'添加成功',
+							})
+						}
+						this.serviceList.push(res.data)
+						
+						this.resetMessData()
+					} else {
+						uni.showToast({
+							title:res.msg,
+							icon:"none"
+						})
+					}
+				}).catch(err=>{
+					if(this.messType == 'text_msg') uni.hideLoading()
+					console.log(err)
+				})
+			},
+			resetMessData(){
+				this.messContent = ""
+				if(this.placeholder == "请输入 ...") this.placeholder = "请输入..."
+				else this.placeholder = "请输入 ..."
+				this.$nextTick(function(){
+					uni.hideKeyboard()
+				})
+			},
+			addTag(e,data){
+				this.messContent += data.url
+				e.stopPropagation() 
+			},
+			inputFocus(e){
+				this.textarearef = "text_msg_add"
+				this.isAdd = true
+			},
+			keyboardFocus(e){
+			},
+			prevImg(e,url){
+				uni.previewImage({
+					urls: [url]
+				});
+				e.stopPropagation()
+			},
+			keyboardheightchange(e, ref){
+				// console.log(e, 'eee')
+				// let systemInfo = uni.getStorageSync('vuex_system_info')
+				// console.log(systemInfo, 'info')
+				// if(this.isHide) return
+				// if(e.detail.height <50){
+				// 	this.cursor = 0
+				// 	this.$refs[ref].blur() 
+					
+				// 	this.messContent = ""
+				// 	this.style = {
+				// 		"transform": "translateY(0)"
+				// 	}
+				// 	this.keyboardBottom = "-5000px"
+				// } else {
+				// 	const query = uni.createSelectorQuery().in(this);
+				// 	query.select(`#${this.textarearef}`).boundingClientRect(data => {
+				// 		if(this.windowHeight -  data.bottom  <  e.detail.height){
+				// 			this.style = {
+				// 				transform: `translateY(-${e.detail.height}px)`
+				// 			}
+				// 		}
+				// 		this.keyboardBottom = e.detail.height + 'px'
+				// 	}).exec();
+				// }
+			},
+			showPoup(e){
+				uni.hideKeyboard()
+				uni.hideTabBar()
+				this.$refs.popupService.open()
+				e.stopPropagation() 
+			},
+			updateComment(e,ref, item){
+				this.textarearef = ref
+				this.messType = item.type
+				this.updateCurrent = item
+				this.isAdd = false
+				if(item.type == 'text_msg'){
+					this.$nextTick(()=>{
+						this.$refs['text_msg_input'].focus()
+						this.messContent = item.content
+					})
+				} else if(item.type == 'image_msg'){
+					uni.hideKeyboard()
+					this.chooseImg(true)
+				}
+				e.stopPropagation()
+			},
+			delComment(e,item, index){
+				uni.hideKeyboard()
+				uni.showModal({
+					content: '是否删除本条信息？',
+					success: (res) => {
+						if (res.confirm) {
+							uni.showLoading({
+								title:"删除中..."
+							})
+							del_service_mess({
+								id:item.id
+							}).then(res=>{
+								uni.hideLoading()
+								uni.showToast({
+									title:"删除成功"
+								})
+								if(res.code == 0){
+									this.serviceList.splice(index,1)
+								} else {
+									uni.showToast({
+										title:res.msg,
+										icon:"none"
+									})
+								}
+							}).catch(err=>{
+								uni.hideLoading()
+								console.log(err)
+							})
+						}
+					}
+				})
+				e.stopPropagation() 
+			},
+			selectServiceType(e,type){
+				this.$refs.popupService.close()
+				setTimeout(()=>{
+					uni.showTabBar()
+				},300)
+				if(type == "cancel"){
+					this.isAdd = false
+					this.messType = ""
+					return
+				} 
+				this.isAdd = true
+				this.messType = type 
+				if(type == 'text_msg'){
+					this.textarearef = 'text_msg_add'
+					this.$nextTick(() => {
+						let query = uni.createSelectorQuery().in(this);
+						setTimeout(()=>{
+							query.select(`#list-view`).boundingClientRect(data => {
+								let lh = data.height
+								let query = uni.createSelectorQuery().in(this);
+								query.select(`#list-group`).boundingClientRect(data => {
+									let gh = data.height
+									if(gh > lh){
+										this.scrollTop = gh - lh
+									}
+									this.$refs['text_msg_add'].focus()
+								}).exec();
+							}).exec();
+						},500)
+					})
+				} else {
+					let query = uni.createSelectorQuery().in(this);
+					setTimeout(()=>{
+						query.select(`#list-view`).boundingClientRect(data => {
+							let lh = data.height
+							let query = uni.createSelectorQuery().in(this);
+							query.select(`#list-group`).boundingClientRect(data => {
+								let gh = data.height
+								if(gh > lh){
+									this.scrollTop = gh - lh
+								}
+							}).exec();
+						}).exec();
+					},500)
+				}
+				e.stopPropagation() 
+			},
+			init() {
+				this.getList()
+			},
+			getList(){
+				statistics_list().then(res=>{
+					if(res.code ==0){
+						this.refreshEnd()
+						this.statisticData = res.data || {}
+					}else {
+						uni.showToast({
+							title:res.msg,
+							icon:'none'
+						})
+					}
+				}).catch(err =>{
+					console.error(err)
+				})
+			},
+			toUserList() {
+				uni.navigateTo({
+					url: '/pages/service/userList'
+				});
+			},
+			goDetail(e) {
+				if (this.navigateFlag) {
+					return;
+				}
+				this.navigateFlag = true;
+				uni.navigateTo({
+					url: './detail/detail?title=' + e.title
+				});
+				setTimeout(() => {
+					this.navigateFlag = false;
+				}, 200)
+			},
+			close(index1, index2) {
+				uni.showModal({
+					content: '是否删除本条信息？',
+					success: (res) => {
+						if (res.confirm) {
+						
+						}
+					}
+				})
+			},
+			ontabtap(e) {
+				let index = e.target.dataset.current || e.currentTarget.dataset.current;
+				this.switchTab(index);
+			},
+			ontabchange(e) {
+				let index = e.target.current || e.detail.current;
+				this.switchTab(index);
+			},
+			switchTab(index) {
+				if (this.tabIndex === index) {
+					return;
+				}
+				uni.hideKeyboard()
+
+				if (this.serviceList.length ==0 && index == 4) {
+					this.getServiceList()
+				}
+				if (index == 2) {
+					let tab = this.newsList[this.examineStatus + 1]
+					if(tab.data.length === 0){
+						tab.prevPage = 0
+						tab.examinePage = 1
+						this.getExamineList({refresh: true})
+					}
+				}
+				this.tabIndex = index;
+				this.scrollInto = this.tabBars[index].id;
+			},
+			getExamineList({
+				refresh = false
+			} = {}){
+				let activeTab = this.newsList[this.examineStatus + 1];
+				if (!refresh && activeTab.prevPage == activeTab.examinePage) return
+				activeTab.prevPage = activeTab.examinePage
+				activeTab.empty = false
+				
+				get_examine({
+					status:this.examineStatus,
+					page:activeTab.examinePage,
+					rows:activeTab.examineRows
+				}).then(res=>{
+					if(res.code == 0){
+						console.log(res, '审核列表')
+						let data = res.data || []
+						for(let i=0; i<data.length; i++){
+							data[i].addtime = formatDate(data[i].addtime)
+						}
+						if (refresh) {
+							activeTab.data = []
+							this.refreshEnd(activeTab)
+						}
+						activeTab.data = activeTab.data.concat(data)
+						this.offDown(activeTab)
+						
+					} else {
+						uni.showToast({
+							title:res.msg,
+							icon:"none"
+						})
+					}
+				}).catch(err=>{
+					console.log(err)
+				})
+			},
+			getServiceList(){
+				get_service_data().then(res=>{
+					if(res.code == 0){
+						this.serviceList = res.data || []
+					}else {
+						uni.showToast({
+							title:res.msg,
+							icon:"none"
+						})
+					}
+				}).catch(err=>{
+					console.log()
+				})
+			},
+			refreshData() {},
+			onrefresh() {
+				if(this.tabIndex == 3){
+					if (!this.refreshFlag) {
+						return;
+					}
+					this.refreshing = true;
+					this.refreshText = "正在刷新...";
+					this.getList()
+				} else if(this.tabIndex == 2){
+					var tab = this.newsList[this.examineStatus + 1];
+					if (!tab.refreshFlag) {
+						return;
+					}
+					tab.refreshing = true;
+					tab.prevPage = 0
+					tab.examinePage = 1
+					tab.refreshText = "正在刷新...";
+					this.getExamineList({refresh: true})
+				}	
+			},
+			refreshEnd(tab) {
+				if(this.tabIndex == 3){
+					setTimeout(() => {
+						this.refreshData();
+						this.pulling = true;
+						this.refreshing = false;
+						this.refreshFlag = false;
+						this.refreshText = "已刷新";
+						setTimeout(() => { // TODO fix ios和Android 动画时间相反问题
+							this.pulling = false;
+						}, 500);
+					}, 2000)
+				} else if(this.tabIndex == 2){
+					setTimeout(() => {
+						this.refreshData();
+						this.pulling = true;
+						tab.refreshing = false;
+						tab.refreshFlag = false;
+						tab.refreshText = "已刷新";
+						setTimeout(() => { // TODO fix ios和Android 动画时间相反问题
+							this.pulling = false;
+							this.$refs["exlist"].resetLoadmore();
+						}, 500);
+					}, 2000)
+				}		
+			},
+			onpullingdown(e) {
+				if(this.tabIndex == 3){
+					if (this.refreshing || this.pulling) {
+						return;
+					}
+					if (Math.abs(e.pullingDistance) > Math.abs(e.viewHeight)) {
+						this.refreshFlag = true;
+						this.refreshText = "释放立即刷新";
+					} else {
+						this.refreshFlag = false;
+						this.refreshText = "下拉可以刷新";
+					}
+				} else if(this.tabIndex == 2){
+					var tab = this.newsList[this.examineStatus + 1];
+					if (tab.refreshing || this.pulling) {
+						return;
+					}
+					if (Math.abs(e.pullingDistance) > Math.abs(e.viewHeight)) {
+						tab.refreshFlag = true;
+						tab.refreshText = "释放立即刷新";
+						tab.empty = false
+						//tab.noMore = false
+					} else {
+						tab.refreshFlag = false;
+						tab.refreshText = "下拉可以刷新";
+					
+					}
+				}	
+			},
+			offDown(activeTab) {
+				if (!activeTab.data || !activeTab.data.length) {
+					activeTab.empty = true
+				} else {
+					activeTab.empty = false
+				}
+				if (activeTab.data.length < activeTab.examinePage * activeTab.examineRows) {
+					activeTab.noMore = true
+				} else {
+					activeTab.noMore = false
+				}
+			},
+			insertStr(soure, start, newStr){   
+			   return soure.slice(0, start) + newStr + soure.slice(start);
+			}
+		}
+	}
+</script>
+<style scoped>
+	/* #ifndef APP-PLUS */
+	page {
+		width: 100%;
+		min-height: 100%;
+		display: flex;
+	}
+
+	/* #endif */
+	.tabs {
+		flex: 1;
+		flex-direction: column;
+		overflow: hidden;
+		background-color: #f6f6f6;
+		/* #ifdef MP-ALIPAY || MP-BAIDU */
+		height: 100vh;
+		/* #endif */
+	}
+	.bg-width{
+		background-color: white;
+	}
+	.tab-group {
+		display: flex;
+		flex-direction: row;
+		align-items: flex-start;
+		justify-content: space-between;
+		align-items: flex-start;
+		padding-left: 24rpx;
+		padding-right: 24rpx;
+		padding-top: 12px;
+	}
+
+	.icon-btn {
+		width: 38rpx;
+		height: 36rpx;
+		margin: 24rpx;
+	}
+
+	.scroll-h {
+		width: 580rpx;
+		flex-direction: row;
+		/* #ifndef APP-PLUS */
+		white-space: nowrap;
+		/* #endif */
+		/* flex-wrap: nowrap; */
+		/* border-color: #cccccc;
+		border-bottom-style: solid;
+		border-bottom-width: 1px; */
+		margin-bottom: 10px;
+	}
+
+	.uni-tab-item {
+		/* #ifndef APP-PLUS */
+		display: inline-block;
+		/* #endif */
+		flex-wrap: nowrap;
+	}
+
+	.uni-tab-group {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+	}
+
+	.uni-tab-item-title {
+		width: 120rpx;
+		text-align: center;
+		color: #555;
+		font-size: 36rpx;
+		height: 80rpx;
+		line-height: 80rpx;
+		flex-wrap: nowrap;
+		/* #ifndef APP-PLUS */
+		white-space: nowrap;
+		/* #endif */
+	}
+
+	.border-img {
+		width: 112rpx;
+		height: 20rpx;
+	}
+
+	.uni-tab-item-title-active {
+		color: #e1b893;
+		font-size: 48rpx;
+		font-weight: 600;
+	}
+
+	.swiper-item {
+		flex: 1;
+		flex-direction: row;
+	}
+
+	.scroll-v {
+		flex: 1;
+		/* #ifndef MP-ALIPAY */
+		flex-direction: column;
+		/* #endif */
+		width: 750rpx;
+	}
+
+	.refresh {
+		width: 750rpx;
+		height: 64px;
+		justify-content: center;
+	}
+
+	.refresh-view {
+		flex-direction: row;
+		flex-wrap: nowrap;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.refresh-icon {
+		width: 30px;
+		height: 30px;
+		transition-duration: .5s;
+		transition-property: transform;
+		transform: rotate(0deg);
+		transform-origin: 15px 15px;
+	}
+
+	.refresh-icon-active {
+		transform: rotate(180deg);
+	}
+
+	.loading-icon {
+		width: 20px;
+		height: 20px;
+		margin-right: 5px;
+		color: #999999;
+	}
+
+	.loading-text {
+		margin-left: 2px;
+		font-size: 16px;
+		color: #999999;
+	}
+
+	.message-group {
+		width: 750rpx;
+		background-color: red;
+		display: flex;
+		flex-direction: column;
+	}
+	.table{
+		display: flex;
+		flex-direction: column;
+		padding-left: 32rpx;
+		padding-right: 32rpx;
+	}
+	.count{
+		display: flex;
+		flex-direction: row;
+		justify-content: space-between;
+		align-items: center;
+	}
+	.t-label{
+		font-size: 32rpx;
+		color: #333333;
+		justify-content: center;
+		text-align: center;
+		height: 60rpx;
+		line-height: 60rpx;
+	}
+	.t-val{
+		font-size: 32rpx;
+		color: #333333;
+		justify-content: center;
+		text-align: center;
+		height: 60rpx;
+		line-height: 60rpx;
+	}
+	.count-val{
+		font-size: 34rpx;
+		color: #999999;
+	}
+	.count{
+		padding-top: 20rpx;
+		padding-bottom: 20rpx;
+	}
+	.t-body{
+		border-color: #DDDDDD;
+		border-left-width: 2rpx;
+		border-right-width: 2rpx;
+		border-top-width: 2rpx;
+		border-bottom-width: 2rpx;
+		border-top-right-radius: 10rpx;
+		border-top-left-radius: 10rpx;
+		border-bottom-right-radius: 10rpx;
+		border-bottom-left-radius: 10rpx;
+	}
+	 .t-header{
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+	}
+	.t-h-r{
+		display: flex;
+		flex-direction: column;
+		text-align: center;
+	}
+	.w-137{
+		width: 137rpx;
+		flex-shrink: 0;
+	}
+	.w-274{
+		width: 274rpx;
+	}
+	.weight{
+		font-weight: bold;
+	}
+	.green{
+		color: #0d9c68;
+	}
+	.red{
+		color: #ff6191;
+	}
+	.column{
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+	}
+	.border-left{
+		border-color: #DDDDDD;
+		border-left-width: 2rpx;
+	}
+	.border-top{
+		border-color: #DDDDDD;
+		border-top-width: 2rpx;
+	}
+	.border-right{
+		border-color: #DDDDDD;
+		border-right-width: 2rpx;
+	}
+	.border-bottom{
+		border-color: #DDDDDD;
+		border-bottom-width: 2rpx;
+	}
+	.h-62{
+		height: 62rpx;
+	}
+	.w-139{
+		width: 139rpx;
+	}
+	.size-26{
+		font-size: 26rpx;
+	}
+	.text-group{
+		padding-left: 30rpx;
+		padding-right: 30rpx;
+		padding-bottom: 10px;
+	}
+	.text-wrap{
+		width: 690rpx;
+		background-color: white;
+		padding-top: 20rpx;
+		padding-bottom: 20rpx;
+		padding-left: 20rpx;
+		padding-right: 20rpx;
+		border-radius: 10rpx;
+		margin-top: 20rpx;
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		align-items: center;
+	}
+	.image_msg{
+		width: 650rpx;
+		height: 200rpx;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+	.image_msg_view{
+		width: 400rpx;
+		height: 200rpx;
+		padding: 10rpx;
+		background-color: #F6F6F6;
+	}
+	.slot-button{
+		width: 130rpx;
+		height: 240rpx;
+		background-color: #CCCCCC;
+		margin-top: 20rpx;
+		margin-left: 15rpx;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: 10rpx;
+	}
+	.slot-button-del{
+		background-color: #db392d;
+	}
+	.text_msg{
+		font-size: 30rpx;
+		color: #777777;
+		width: 650rpx;
+		flex: 1;
+	}
+	.slot-button-text{
+		color: white;
+		font-size: 30rpx;
+	}
+	.mess-title{
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+	}
+	.mess-text{
+		color: #555555;
+		font-size: 32rpx;
+	}
+	.popup-service-group{
+		width: 750rpx;
+		display: flex;
+		flex-direction: column;
+	}
+	.popup-service-item{
+		flex: 1;
+		background-color: white;
+		font-size: 32rpx;
+		color: #171717;
+		text-align: center;
+		padding-top: 30rpx;
+		padding-bottom: 30rpx;
+	}
+	.popup-service-item-text_msg{
+		border-top-left-radius: 20rpx;
+		border-top-right-radius: 20rpx;
+		border-bottom-color: #f6f6f6;
+		border-bottom-width: 2rpx;
+	}
+	.popup-service-item-image_msg{
+		border-bottom-left-radius: 20rpx;
+		border-bottom-right-radius: 20rpx;
+	}
+	.popup-service-item-cancel{
+		margin-top: 20rpx;
+		background-color: #EFEFEF;
+		border-radius: 20rpx;
+	}
+	.keyboard-input {
+		position: fixed;
+		z-index: 999;
+		left: 0;
+		bottom: 0;
+		padding: 15rpx 30rpx 25rpx;
+		width: 750rpx;
+		border-top-color: #e9e9e9;
+		border-top-width: 1rpx;
+		background-color: #F6F6F6;
+		display: flex;
+		flex-direction: row;
+		justify-content: flex-end;
+		align-items: flex-end;
+	}
+	.text_input-group{
+		width: 500rpx;
+		margin-right: 20rpx;
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+	}
+	.text_input{
+		flex: 1;
+		background-color: #e6e6e6;
+		border-radius: 10rpx;
+		padding: 10rpx;
+	}
+	.keyboard-btn{
+		flex: 1;
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		justify-content: flex-end;
+	}
+	.url-btn{
+		width: 58rpx;
+		height: 58rpx;
+		margin-right: 15rpx;
+	}
+	.save-btn{
+		width: 100rpx;
+		height: 58rpx;
+		background-color: #e1b893;
+		color: white;
+		text-align: center;
+		line-height: 58rpx;
+		font-size: 30rpx;
+		border-radius: 10rpx;
+	}
+	.examine-group{
+		display: flex;
+		flex-direction: column;
+		padding-left: 32rpx;
+		padding-right: 32rpx;
+		padding-bottom: 15rpx;
+	}
+	.examine-bar-group{
+		padding-left: 32rpx;
+		padding-right: 32rpx;
+		padding-bottom: 10rpx;
+	}
+	.examine-item{
+		background-color: white;
+		border-top-left-radius: 12rpx;
+		border-top-right-radius: 12rpx;
+		padding: 30rpx;
+	}
+	.examine-btn-group{
+		background-color: white;
+		margin-top: 4rpx;
+		border-bottom-left-radius: 12rpx;
+		border-bottom-right-radius: 12rpx;
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		justify-content: flex-end;
+		padding: 20rpx;
+	}
+	.examine-btn{
+		width: 140rpx;
+		height: 60rpx;
+		border-radius: 30rpx;
+		text-align: center;
+		line-height: 60rpx;
+		font-size: 26rpx;
+		color: #595757;
+		margin-left: 20rpx;
+	}
+	.examine-content{
+		font-size: 30rpx;
+		line-height: 40rpx;
+		color: #333333;
+		padding-bottom: 40rpx;
+	}
+	.examine-nickname{
+		font-size: 28rpx;
+		color: #666666;
+		padding-bottom: 10rpx;
+	}
+	.examine-date{
+		font-size: 24rpx;
+		color: #BBBBBB;
+	}
+	.examine-pass{
+		background-color: #EFD3B6;
+	}
+	.examine-shield{
+		background-color: #E6E6E6;
+	}
+	.examine-jump{
+		background-color: #F6EADE;
+	}
+	.loading-more {
+		align-items: center;
+		justify-content: center;
+		padding-top: 10px;
+		padding-bottom: 10px;
+		text-align: center;
+	}
+	
+	.loading-more-text {
+		font-size: 28rpx;
+		color: #999;
+	}
+	.tab-bar-group{
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+	}
+	.uni-tab-examine-item{
+		flex: 1;
+		text-align: center;
+		background-color: white;
+	}
+	.first-examine{
+		border-top-left-radius: 12rpx;
+		border-bottom-left-radius: 12rpx;
+	}
+	.last-examine{
+		border-top-right-radius: 12rpx;
+		border-bottom-right-radius: 12rpx;
+	}
+	.uni-tab-examine-title {
+		flex: 1;
+		text-align: center;
+		color: #555;
+		font-size: 30rpx;
+		height: 60rpx;
+		line-height: 60rpx;
+		flex-wrap: nowrap;
+		/* #ifndef APP-PLUS */
+		white-space: nowrap;
+		/* #endif */
+	}
+	.examine-active{
+		background-color: #e1b893;
+	}
+</style>

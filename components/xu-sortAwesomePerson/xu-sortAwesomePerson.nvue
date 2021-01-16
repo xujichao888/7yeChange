@@ -1,0 +1,65 @@
+<template>
+	<view class="awesome-person-block" :class="{isfirst:isFirst}">
+		<image class="avatar" :class="{firstAvatar:isFirst}" :src="renderJson.avatar" mode="aspectFill"></image>
+		<text class="nickname">{{renderJson.nickname}}</text>
+		<view class="bottom">
+			<xu-buleHeartOrPinkHeart :sex="renderJson.sex" />
+			<text class="nickname">{{renderJson.income?renderJson.income:0}}</text>
+		</view>
+	</view>
+</template>
+
+<script>
+	export default {
+		props:{
+			isFirst:false,//是不是第一名
+			renderJson:{ //渲染的数据
+				type:Object,
+				default:{
+					income:0
+				}
+			}
+		}
+	}
+</script>
+
+<style scoped>
+	.awesome-person-block{
+		width: 154rpx;
+		height: 235rpx;
+		justify-content: space-around;
+		align-items: center;
+		margin-top: 140rpx;
+	}
+	.isfirst{
+		width: 174rpx;
+		height: 261rpx;
+		justify-content: space-around;
+		align-items: center;
+		margin-top: 0;
+	}
+	.avatar{
+		width: 151rpx;
+		height: 151rpx;
+		border-width: 3rpx;
+		border-color: #F2AB64;
+		border-style: solid;
+		border-radius: 171rpx;
+	}
+	.firstAvatar{
+		width: 171rpx;
+		height: 171rpx;
+		border-width: 3rpx;
+		border-color: #F2AB64;
+		border-style: solid;
+		border-radius: 171rpx;
+	}
+	.bottom{
+		flex-direction: row;
+		align-items: center;
+	}
+	.nickname{
+		color: #FFFFFF;
+		font-size: 28rpx;
+	}
+</style>

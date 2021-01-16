@@ -1,0 +1,122 @@
+<template>
+	<view class="animateGiftMsg" ref="wocao">
+		<view style="position: relative; height: 150rpx;">
+			<image style="position: absolute;" class="imgs" src="/static/icon/ss.png" mode="widthFix"></image>
+			<view class="contents">
+				<view class="left">
+					
+				</view>
+				<view class="num">
+					<text class="xxx"> x</text>
+					<text class="nums">13</text>
+				</view>
+			</view>
+			
+		</view>
+	</view>
+</template>
+
+<script>
+	const Binding = uni.requireNativePlugin('bindingx');
+	export default {
+		props:{},
+		methods:{
+			getEl: function(el) {
+				if (typeof el === 'string' || typeof el === 'number') return el;
+				if (WXEnvironment) {
+					return el.ref;
+				} else {
+					return el instanceof HTMLElement ? el : el.$el;
+				}
+			},
+			async renderAnimations(){ //播放动画
+				console.log('播放动画')
+				// let step1= await this.BindingxAnimate(this.getEl(this.$refs.wocao),'t>10', [
+				// 	{
+				// 		element: this.getEl(this.$refs.wocao),
+				// 		property: 'transform.translateY',
+				// 		expression:'easeOutElastic(t,0,300,10)'
+				// 	}
+				// ])
+				let step2 = await this.BindingxAnimate(this.getEl(this.$refs.wocao),'t>1000', [{
+					element: this.getEl(this.$refs.wocao),
+					property: 'transform.translateX',
+					expression:'easeOutElastic(t,-300,300,2000)'
+				}])
+				let step3= await this.BindingxAnimate(this.getEl(this.$refs.wocao),'t>1000', [
+					{
+						element: this.getEl(this.$refs.wocao),
+						property: 'transform.translateY',
+						expression:'easeOutElastic(t,0,-100,1000)'
+					}
+				])
+				// let step4= await this.BindingxAnimate(this.getEl(this.$refs.wocao),'t>10', [
+				// 	{
+				// 		element: this.getEl(this.$refs.wocao),
+				// 		property: 'transform.translateX',
+				// 		expression:'easeOutElastic(t,100,-200,10)'
+				// 	}
+				// ])
+			},
+			BindingxAnimate(token, animateTimeStr, propsArr) { // valueName,expression
+				let main_btn = token;
+				return new Promise((resolve, reject) => {
+					Binding.bind({
+						eventType: 'timing', //动画的模式 timing 表示是时间动画
+						exitExpression: animateTimeStr, //动画的时间
+						props: propsArr
+					}, function(res) {
+						let {
+							state
+						} = res;
+						if (state == 'exit') {
+							Binding.unbind({
+								token: main_btn.token,
+								eventType: 'timing'
+							})
+							resolve('done')
+						}
+					})
+				})
+			},
+		}
+	}
+</script>
+
+<style scoped>
+	.animateGiftMsg{
+		width: 600rpx;
+		height: 130rpx;
+		background-color: #005B5C;
+		top: 800rpx;
+		position: fixed;
+	}
+
+	.imgs{
+		width: 450rpx;
+		height: 130rpx;
+	}
+	.contents{
+		width: 600rpx;
+		height: 130rpx;
+		flex-direction: row;
+	}
+	.left{
+		width: 450rpx;
+		height: 130rpx;
+	}
+	.num{
+		width: 150rpx;
+		height: 130rpx;
+		flex-direction: row;
+		align-items: center;
+		justify-content: flex-start;
+	}
+	.xxx{
+		color: #F5A656;
+	}
+	.nums{
+		font-size: 50rpx;
+		color: #F1F1F1;
+	}
+</style>

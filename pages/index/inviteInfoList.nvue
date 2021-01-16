@@ -1,0 +1,675 @@
+<template>
+	<view class="tabs">
+		<view>
+			<view class="status_bar">
+				<!-- 这里是状态栏 -->
+			</view>
+			<view>&nbsp;</view>
+		</view>
+		<view class="tab-group">
+			<scroll-view id="tab-bar" class="scroll-h" :scroll-x="true" :show-scrollbar="false" :scroll-into-view="scrollInto">
+				<view class="tab-bar-wrap">
+					<uni-icons class="back-btn" type="arrowleft" size="24" color="#444444" @click="back"></uni-icons>
+					<view class="tab-bar-group">
+						<view v-for="(tab,index) in tabBars" :key="tab.id" class="uni-tab-item" :id="tab.id" :data-current="index" @click="ontabtap">
+							<div class="uni-tab-group" :class="{'uni-tab-item-left': index == 0, 'uni-tab-item-right': index == 1, active:tabIndex==index}">
+								<text class="uni-tab-item-title" :class="tabIndex==index ? 'uni-tab-item-title-active' : ''">{{tab.name}}</text>
+							</div>
+						</view>
+					</view>
+				</view>
+			</scroll-view>
+		</view>
+		<swiper :current="tabIndex" class="swiper-box" style="flex: 1;" :duration="300" @change="ontabchange">
+			<swiper-item class="swiper-item" v-for="(tab,index1) in newsList" :key="index1">
+				<!-- #ifdef APP-NVUE -->
+				<list class="scroll-v list" enableBackToTop="true" scroll-y loadmoreoffset="15" @loadmore="loadMore(index1)">
+					<refresh class="refresh" @refresh="onrefresh(index1)" @pullingdown="onpullingdown" :display="tab.refreshing ? 'show' : 'hide'">
+						<div class="refresh-view">
+							<image class="refresh-icon" :src="refreshIcon" :style="{width: (tab.refreshing || pulling) ? 0: '30px'}" :class="{'refresh-icon-active': tab.refreshFlag}"></image>
+							<loading-indicator class="loading-icon" animating="true" v-if="tab.refreshing"></loading-indicator>
+							<text class="loading-text">{{tab.refreshText}}</text>
+						</div>
+					</refresh>
+					<cell v-for="(newsitem,index2) in tab.data" :key="index1 + '_' + index2">
+						<view v-if="index1 === 0" class="item-group" @click="inviteHandle(newsitem, index1)">
+							<view class="left-box">
+								<image class="avatarimg" :src="newsitem.avatarimg"></image>
+								<view class="content">
+									<text class="nickname">{{newsitem.nickname}}</text>
+									<view class="user-age">
+										<image v-if="newsitem.sex >= 0" :class="{'sex-icon-nv':newsitem.sex==0, 'sex-icon-nan':newsitem.sex == 1}" :src="newsitem.sexicon"></image>
+										<text class="age" v-if="newsitem.age">{{newsitem.age}}岁 · {{newsitem.constellation}}座</text>
+									</view>
+									<text class="time">{{newsitem.time}}</text>
+								</view>
+							</view>
+							<text class="pass-btn-text" @click="removeSign($event, newsitem, index2)" :class="{'pass-btn-text-active':newsitem.signupinvitestatus == 1}">{{newsitem.signupinvitestatus == 0 ? '取消报名' : '已通过'}}</text>
+						</view>
+						<view v-if="index1 === 1" class="item-group" @click="inviteHandle(newsitem,index1)">
+							<view class="left-box left-box-2">
+								<image class="avatarimg" :src="newsitem.avatarimg"></image>
+								<view class="content">
+									<text class="remark" v-if="newsitem.remark !== ''">{{newsitem.remark}}</text>
+									<view v-if="newsitem.images.length" class="user-image">
+										<image mode="aspectFill" class="item-image" v-for="item in newsitem.images" :key="item.id" :src="item.image"></image>
+									</view>
+									<text class="time">{{newsitem.time}}</text>
+								</view>
+							</view>
+							<text class="pass-btn-text pass-btn-text2">{{newsitem.agree }} / {{newsitem.peoples}}</text>
+						</view>
+					</cell>
+					<cell class="loading-more" v-if="tab.empty">
+						<text class="loading-more-text">暂无数据</text>
+					</cell>
+					<cell class="loading-more" v-else-if="tab.noMore && tab.data.length > 4">
+						<text class="loading-more-text">没有更多了~</text>
+					</cell>
+					<cell class="loading-more" v-else-if="tab.data.length > 4">
+						<text class="loading-more-text">{{tab.loadingText}}</text>
+					</cell>
+				</list>
+				<!-- #endif -->
+			</swiper-item>
+		</swiper>
+		<uni-popup ref="popupmes" type="message">
+			<uni-popup-message type="error" message="网络连接断开" :duration="0"></uni-popup-message>
+		</uni-popup>
+	</view>
+</template>
+<script>
+	import {
+		mapGetters,
+		mapMutations
+	} from 'vuex'
+	import recomItem from './components/recomItem.nvue';
+	import inviteItem from './components/inviteItem.nvue';
+	import feedItem from './components/feedItem.nvue';
+	import {
+		get_signup,
+		sign_up
+	} from "@/common/http.nvue.api.js"
+	import {
+		formatDate,
+		getConstellation,
+		paramJson,
+		timeDis
+	} from '@/utils/param.js'
+
+	// 缓存每页最多
+	const MAX_CACHE_DATA = 100;
+	// 缓存页签数量
+	const MAX_CACHE_PAGE = 3;
+
+	export default {
+		components: {
+			recomItem,
+			inviteItem,
+			feedItem
+		},
+		data() {
+			return {
+				sex1:"/static/icons/index/nan.png",
+				sex0:"/static/icons/index/nv.png",
+				newsList: [],
+				cacheTab: [],
+				tabIndex: 0,
+				tabBars: [{
+					name: '我的报名',
+					id: 'tuijian'
+				}, {
+					name: '我发起的',
+					id: 'yaoyue'
+				}],
+				scrollInto: "",
+				showTips: false,
+				navigateFlag: false,
+				pulling: false,
+				refreshIcon: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAMAAABg3Am1AAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAB5QTFRFcHBw3Nzct7e39vb2ycnJioqK7e3tpqam29vb////D8oK7wAAAAp0Uk5T////////////ALLMLM8AAABxSURBVHja7JVBDoAgDASrjqj//7CJBi90iyYeOHTPMwmFZrHjYyyFYYUy1bwUZqtJIYVxhf1a6u0R7iUvWsCcrEtwJHp8MwMdvh2amHduiZD3rpWId9+BgPd7Cc2LIkPyqvlQvKxKBJ//Qwq/CacAAwDUv0a0YuKhzgAAAABJRU5ErkJggg=="
+			}
+		},
+		computed: {
+			...mapGetters([
+				'userInfo',
+				'networkState',
+			])
+		},
+		watch: {
+			networkState: {
+				handler(val) {
+					let _this = this
+					function changeState(state) {
+						if (!_this.$refs.popupmes) {
+							setTimeout(() => {
+								changeState()
+							}, 500)
+							return
+						}
+						if (val) _this.$refs.popupmes.close()
+						else _this.$refs.popupmes.open()
+					}
+					changeState(val)
+				},
+				immediate: true
+			}
+		},
+		onLoad() {
+			this.tabBars.forEach((tabBar) => {
+				this.newsList.push({
+					data: [],
+					empty: false,
+					isLoading: false,
+					refreshText: "",
+					loadingText: '加载更多...',
+					noMore: false,
+					prevPage: 0,
+					page: 1,
+					rows: 10
+				});
+			});
+			uni.$on('deleSign', this.deleSign)
+			uni.$on("addSignCount", this.addSignCount)
+			this.init()
+		},
+		onUnload() {
+			uni.$off('deleSign', this.deleSign)
+			uni.$off("addSignCount", this.addSignCount)
+		},
+		methods: {
+			...mapMutations([
+			]),
+			back(){
+				uni.navigateBack({
+					delta:1
+				})
+			},
+			init() {
+				if (this.newsList[0] && this.newsList[0].data) {
+					this.newsList[0].data = []
+				}
+				// if(this.newsList[1] && this.newsList[1].data){
+				// 	this.newsList[1].data = []
+				// }
+				this.newsList[0].prevPage = 0
+				this.newsList[0].page = 1
+				this.getRecomList()
+			},
+			getRecomList({
+				refresh = false
+			} = {}) {
+				let activeTab = this.newsList[this.tabIndex];
+				if (!refresh && activeTab.prevPage == activeTab.page) return
+				activeTab.prevPage = activeTab.page
+				activeTab.empty = false
+				get_signup({
+					type: this.tabIndex,
+					page: activeTab.page,
+					rows: activeTab.rows
+				}).then(res => {
+					let data = res.data || []
+					for(let i=0; i<data.length; i++){
+						let birthday = formatDate(data[i].birthday)
+						data[i].birthday = birthday
+						data[i].constellation = getConstellation(birthday)
+						data[i].sexicon = this[`sex${data[i].sex}`]
+						data[i].time = `${formatDate(data[i].starttime).split(" ")[0]} ~ ${formatDate(data[i].endtime).split(" ")[0]}` 
+					}
+					if (refresh) {
+						activeTab.data = []
+						this.refreshEnd(activeTab)
+					}
+					activeTab.data = activeTab.data.concat(data)
+					this.offDown(activeTab, data.length)
+				}).catch(err => {
+					console.error(err)
+				})
+			},
+			inviteHandle(data, type) {
+				uni.navigateTo({
+					url: `/pages/index/inviteInfo?invitationid=${data.invitationid}&type=${type}&id=${data.userid}`
+				});
+			},
+			loadMore(e) {
+				let tab = this.newsList[this.tabIndex];
+				if (tab.empty || tab.noMore) return
+				tab.page++
+				this.getRecomList();
+			},
+			ontabtap(e) {
+				let index = e.target.dataset.current || e.currentTarget.dataset.current;
+				this.switchTab(index);
+			},
+			ontabchange(e) {
+				let index = e.target.current || e.detail.current;
+				this.switchTab(index);
+			},
+			switchTab(index) {
+				if (this.newsList[index].data.length === 0) {
+					this.getRecomList();
+				}
+
+				if (this.tabIndex === index) {
+					return;
+				}
+
+				// 缓存 tabId
+				if (this.newsList[this.tabIndex].data.length > MAX_CACHE_DATA) {
+					let isExist = this.cacheTab.indexOf(this.tabIndex);
+					if (isExist < 0) {
+						this.cacheTab.push(this.tabIndex);
+						//console.log("cache index:: " + this.tabIndex);
+					}
+				}
+
+				this.tabIndex = index;
+				this.scrollInto = this.tabBars[index].id;
+
+				// 释放 tabId
+				if (this.cacheTab.length > MAX_CACHE_PAGE) {
+					let cacheIndex = this.cacheTab[0];
+					this.clearTabData(cacheIndex);
+					this.cacheTab.splice(0, 1);
+					//console.log("remove cache index:: " + cacheIndex);
+				}
+			},
+			clearTabData(e) {
+				this.newsList[e].data.length = 0;
+				this.newsList[e].loadingText = "加载更多...";
+			},
+			refreshData() {},
+			onrefresh(e) {
+				var tab = this.newsList[this.tabIndex];
+				if (!tab.refreshFlag) {
+					return;
+				}
+				tab.refreshing = true;
+				tab.prevPage = 0
+				tab.page = 1
+				tab.refreshText = "正在刷新...";
+				this.getRecomList({
+					refresh: true
+				})
+			},
+			refreshEnd(tab) {
+				setTimeout(() => {
+					this.refreshData();
+					this.pulling = true;
+					tab.refreshing = false;
+					tab.refreshFlag = false;
+					tab.refreshText = "已刷新";
+					setTimeout(() => { // TODO fix ios和Android 动画时间相反问题
+						this.pulling = false;
+					}, 500);
+				}, 2000)
+			},
+			onpullingdown(e) {
+				var tab = this.newsList[this.tabIndex];
+				if (tab.refreshing || this.pulling) {
+					return;
+				}
+				if (Math.abs(e.pullingDistance) > Math.abs(e.viewHeight)) {
+					tab.refreshFlag = true;
+					tab.refreshText = "释放立即刷新";
+					tab.empty = false
+					//tab.noMore = false
+				} else {
+					tab.refreshFlag = false;
+					tab.refreshText = "下拉可以刷新";
+
+				}
+			},
+			offDown(activeTab, len) {
+				if (!activeTab.data || !activeTab.data.length) {
+					activeTab.empty = true
+				} else {
+					activeTab.empty = false
+				}
+				if (len < activeTab.rows) {
+					activeTab.noMore = true
+				} else {
+					activeTab.noMore = false
+				}
+			},
+			admireCheck(id) {
+				let current = this.newsList[2].data.find(item => item.id == id)
+				current.isAdmire = !current.isAdmire
+				if (current.isAdmire) current.counts++
+				else current.counts--
+			},
+			deleSign({id, type}){
+				var tab = this.newsList[type].data;
+				let index = tab.findIndex(item=>item.invitationid == id)
+				
+				console.log(id, 'index')
+				tab.splice(index, 1)
+				
+				uni.$emit('removeSignList', id)
+			},
+			addSignCount(id){
+				let tab = this.newsList[1].data
+				let current = tab.find(item=>item.invitationid == id)
+				current.agree ++
+			},
+			removeSign(ev,item, index){
+				ev.stopPropagation()
+				if(item.signupinvitestatus == 1) return
+				uni.showLoading({
+					title: "取消报名中..."
+				})
+				sign_up({
+					"invitationid": item.invitationid,
+					"inviteuserid": this.userInfo.id,
+					"userid": item.userid
+				}).then(res => {
+					uni.hideLoading()
+					if(res.code == 0){
+						var tab = this.newsList[this.tabIndex];
+						tab.data.splice(index, 1)
+						uni.$emit('removeSignList', item.invitationid)
+					} else {
+						uni.showToast({
+							title: res.msg,
+							icon: 'none'
+						})
+					}
+				}).catch(err => {
+					uni.hideLoading()
+					uni.showToast({
+						title: err.message,
+						icon: 'none'
+					})
+					console.error(err)
+				})
+			}
+		}
+	}
+</script>
+
+<style scoped>
+	/* #ifndef APP-PLUS */
+	page {
+		width: 100%;
+		min-height: 100%;
+		display: flex;
+	}
+
+	/* #endif */
+
+	.tabs {
+		flex: 1;
+		flex-direction: column;
+		overflow: hidden;
+		background-color: white;
+		/* #ifdef MP-ALIPAY || MP-BAIDU */
+		height: 100vh;
+		/* #endif */
+	}
+
+	.tab-group {
+		display: flex;
+		flex-direction: row;
+		align-items: flex-start;
+		justify-content: space-between;
+		align-items: flex-start;
+		padding-top: 25px;
+	}
+
+	.icon-btn {
+		width: 34rpx;
+		height: 34rpx;
+		margin: 24rpx;
+	}
+	.nvitation-icon-group{
+		width: 50rpx;
+		height: 50rpx;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		margin: 18rpx;
+	}
+	.scroll-h {
+		width: 702rpx;
+		flex-direction: row;
+		/* #ifndef APP-PLUS */
+		white-space: nowrap;
+		/* #endif */
+		/* flex-wrap: nowrap; */
+		/* border-color: #cccccc;
+		border-bottom-style: solid;
+		border-bottom-width: 1px; */
+		margin-bottom: 10px;
+		align-items: center;
+	}
+	.tab-bar-wrap{
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		width: 702rpx;
+		/* padding-left: 30rpx;
+		padding-right: 30rpx; */
+	}
+	.tab-bar-group{
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		width: 600rpx;
+	}
+	.back-btn{
+		width: 102rpx;
+		display: flex;
+		align-items: center;
+	}
+	.uni-tab-item {
+		flex: 1;
+	}
+	.uni-tab-item-left {
+		border-top-left-radius: 50rpx;
+		border-bottom-left-radius: 50rpx;
+	}
+	.uni-tab-item-right {
+		border-top-right-radius: 50rpx;
+		border-bottom-right-radius: 50rpx;
+	}
+	.active{
+		background-color: #efd3b6;
+	}
+	.uni-tab-group {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		background-color: #F6F6F6;
+	}
+
+	.uni-tab-item-title {
+		text-align: center;
+		color: #555;
+		font-size: 30rpx;
+		height: 80rpx;
+		line-height: 80rpx;
+		flex-wrap: nowrap;
+		/* #ifndef APP-PLUS */
+		white-space: nowrap;
+		/* #endif */
+	}
+
+	.border-img {
+		width: 112rpx;
+		height: 20rpx;
+	}
+
+	.uni-tab-item-title-active {
+		font-weight: 600;
+	}
+	.swiper-box {
+		flex: 1;
+	}
+
+	.swiper-item {
+		flex: 1;
+		flex-direction: row;
+	}
+
+	.scroll-v {
+		flex: 1;
+		/* #ifndef MP-ALIPAY */
+		flex-direction: column;
+		/* #endif */
+		width: 750rpx;
+	}
+
+	.refresh {
+		width: 750rpx;
+		height: 64px;
+		justify-content: center;
+	}
+
+	.refresh-view {
+		flex-direction: row;
+		flex-wrap: nowrap;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.refresh-icon {
+		width: 30px;
+		height: 30px;
+		transition-duration: .5s;
+		transition-property: transform;
+		transform: rotate(0deg);
+		transform-origin: 15px 15px;
+	}
+
+	.refresh-icon-active {
+		transform: rotate(180deg);
+	}
+
+	.loading-icon {
+		width: 20px;
+		height: 20px;
+		margin-right: 5px;
+		color: #999999;
+	}
+
+	.loading-text {
+		margin-left: 2px;
+		font-size: 16px;
+		color: #999999;
+	}
+
+	.loading-more {
+		align-items: center;
+		justify-content: center;
+		padding-top: 10px;
+		padding-bottom: 10px;
+		text-align: center;
+	}
+
+	.loading-more-text {
+		font-size: 28rpx;
+		color: #999;
+	}
+
+	.sign-btn-group {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+	}
+	.item-group{
+		width: 690rpx;	
+		margin-left: 30rpx;
+		margin-right: 30rpx;
+		border-bottom-width: 1rpx;
+		border-bottom-color: #ededed;
+		border-bottom-style: solid;
+		display: flex;
+		flex-direction: row;
+		justify-content: space-between;
+		padding: 40rpx 0;
+	}
+	.avatarimg{
+		width: 120rpx;
+		height: 120rpx;
+		border-radius: 50%;
+	}
+	.nickname{
+		color: #555555;
+		font-size: 30rpx;
+		font-weight: bold; 
+	}
+	.age{
+		font-size: 24rpx;
+		color: #555555;
+	}
+	.remark{
+		font-size: 28rpx;
+		color: #555555;
+		line-height: 34rpx;
+		padding-top: 20rpx;
+	}
+	.sex-icon-nv{
+		width: 14rpx;
+		height: 21rpx;
+	}
+	.sex-icon-nan{
+		width: 19rpx;
+		height: 20rpx;
+	}
+	.time{
+		font-size: 24rpx;
+		color: #999999;
+	}
+	.left-box{
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		
+	}
+	.content{
+		display: flex;
+		flex-direction: column;
+		margin-left: 20rpx;
+		justify-content: space-between;
+		width: 360rpx;
+	}
+	.user-age{
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		padding: 10rpx 0;
+	}
+	.pass-btn{
+		padding: 10rpx;
+	}
+	.pass-btn-text{
+		font-size: 30rpx;
+		color: #555555;
+		background-color: #F6F6F6;
+		padding: 15rpx 30rpx;
+		border-radius: 40rpx;
+	}
+	.pass-btn-text-active{
+		color: #ecc9b9;
+		background-color: white;
+	}
+	.user-image{
+		flex: 1;
+		display: flex;
+		flex-direction: row;
+		flex-wrap: wrap;
+		padding-top: 20rpx;
+	}
+	.item-image{
+		width: 100rpx;
+		height: 100rpx;
+		border-radius: 10rpx;
+		margin-bottom: 20rpx;
+		margin-left: 20rpx;
+	}
+	.left-box-2{
+		align-items: flex-start;
+	}
+	.pass-btn-text2{
+		color: #ecc9b9;
+	}
+</style>

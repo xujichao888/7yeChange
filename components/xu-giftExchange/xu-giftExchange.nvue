@@ -1,0 +1,87 @@
+<template>
+	<view class="exchange-content" style="position: relative;">
+		<xu-giftExchangeBlock 
+			v-for="(item,idx) in 6" 
+			:key="idx" 
+			:exchangeMoney="100" 
+			:payFor="10" 
+			:isArctive="idx == curcor"
+			:idx='idx'
+			@funCallBack ="changeSelect"
+		/>
+		<view class="bottom" style="position: absolute;">
+			<view class="left">
+				<text class="hasMoneyText">已有</text>
+				<image class="zuanshi-icon" src="/static/icon/zuanshi.png" mode="widthFix"></image>
+				<text class="has-money-num">1000</text>
+			</view>
+			<view class="right">
+				<image class="btns" src="/static/icon/ccccc.png" mode="widthFix"></image>
+			</view>
+			
+		</view>
+	</view>
+</template>
+
+<script>
+	export default {
+		data(){
+			return{
+				curcor:0,
+			}
+		},
+		methods:{
+			changeSelect(idx){
+				this.curcor = idx
+			}
+		}
+	}
+</script>
+
+<style scoped>
+	.exchange-content{
+		width: 750rpx;
+		padding: 36rpx;
+		height: 723rpx;
+		background-color: #021526;
+		flex-direction: row;
+		flex-wrap: wrap;
+		justify-content: space-between;
+		
+	}
+	.bottom{
+		width: 750rpx;
+		height: 100rpx;
+		bottom: 0;
+		left: 0;
+		padding:0 36rpx;
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+	}
+	.left{
+		flex-direction: row;
+		align-items: center;
+	}
+	.hasMoneyText{
+		color: #7060DC;
+		font-size: 26rpx;
+	}
+	.zuanshi-icon{
+		width: 50rpx;
+		margin:  0 10rpx;
+	}
+	.right{
+		width: 350rpx;
+		height: 100rpx;
+		flex-direction: row;
+		justify-content: flex-end;
+		align-items: center;
+	}
+	.btns{
+		width: 130rpx;
+	}
+	.has-money-num{
+		color: #B77900;
+	}
+</style>

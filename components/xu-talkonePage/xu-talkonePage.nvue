@@ -1,0 +1,287 @@
+<template>
+	<view class="talk-one-page" style="position: relative;" @click="hideKeyboad">
+		<xu-popuptitle :text="nickName" :hasBackIcon='true' @backCallback="backTolist"/>
+		<list class="lists" :scroll-top="scrollTop" @scroll="scrollWatch">
+			<cell>
+				<view class="render-box">
+					<view class="render-list" v-for="(item,index) in getRenderArr" :key="index">
+						<view class="tops">
+							<text class="times">{{exchangeTimes(item.time)}}</text>
+						</view>
+						<view class="bottoms" style="position: relative;" :class="{itsMe:getId == item.from}">
+							<text class="lefts" style="max-width:400rpx" v-if="getId == item.from">{{item.val}}</text>
+							<image class="avatars" :src="item.avatar" mode="aspectFill"></image>
+							<text class="contents" style="max-width:400rpx" v-if="getId != item.from">{{item.val}}</text>
+							<image v-if="getId == item.from" style="width: 30rpx;position: absolute; right: 115rpx; top: 35rpx;" src="/static/icon/right.png" mode="widthFix"></image>
+							<image v-if="getId != item.from" style="width: 30rpx;position: absolute; left: 115rpx; top: 35rpx;" src="/static/icon/leftjian.png" mode="widthFix"></image>
+						</view>
+					</view>
+				</view>
+			</cell>
+		</list>
+	
+		<view class="input-box" style="position: absolute; left: 0; bottom: 20rpx;">
+			<input class="inputs" v-model="inputVal" type="text" placeholder="发消息...." placeholder-style="color:rgba(150,150,150,1)"  />
+			<text class="send" @click.stop="sendmsg">发送{{uid}}</text>
+		</view>
+	</view>
+</template>
+
+<script>
+	import exchangeTime from '@/static/publicJs/exchangeTime.js';
+	const rtcModule = uni.requireNativePlugin('uniplugin_rtc_RtcModule');
+	export default {
+		props:{
+			uid:String, //对方的id
+			nickName:String,//对方的名字
+			avatar:String,//对方的头像
+		},
+		computed:{
+			getRenderArr(){
+				console.log('触发了那',this.canGoBottom)
+				console.log(this.num)
+				if(this.canGoBottom){ //是否在最底部
+					this.gotoBottom()
+				}else{
+					console.log('num触发了')
+					this.num++
+				}
+				console.log('进入了聊天页面',this.$store.state.oneTalkRenderArr)
+				return this.$store.state.oneTalkRenderArr
+			},
+			getId(){ //获得自己的id
+				return this.$store.state.userMsg.id
+			},
+			rpxExchangePx(){
+				return this.$store.state.rpxExchangePxs;
+			},
+			talkListByStore(){
+				return this.$store.state.talkOnePeerRenderArr
+			}
+		},
+		data(){
+			return{
+				inputVal:'',
+				scrollTop:0,
+				canGoBottom:true,
+				bottomY:0,//计算最底部的值
+				num:0
+			}
+		},
+		mounted() {
+				console.log('触发了吗？大萨达萨达撒')
+				this.$store.state.talkNowUserId = this.uid;
+				let ownid = this.$store.state.userMsg.id+''
+				this.$set(this.$store.state,'oneTalkRenderArr',[])
+				let Talkstorage = uni.getStorageSync('takeContent');
+				if(Talkstorage && Talkstorage[ownid] && Talkstorage[ownid][this.uid]){
+					console.log(this.uid)
+					this.$set(this.$store.state,'oneTalkRenderArr',Talkstorage[ownid][this.uid.toString()]);
+					console.log(this.$store.state.oneTalkRenderArr)
+				}
+		},
+		methods:{
+			clear(){
+				
+			},
+			backTolist(){ //回到列表页
+				this.$emit('backList')
+				this.$set(this.$store.state,'oneTalkRenderArr',[])
+				this.$store.state.talkNowUserId = -1;
+			},
+			hideKeyboad(){ //隐藏键盘
+				uni.hideKeyboard()
+			},
+			sendmsg(){ //发消息
+				console.log(123)
+				if(this.inputVal.length<1){
+					uni.showToast({
+						title:'发送的消息不能为空',
+						icon:'none'
+					})
+					return false
+				}
+				let selfRender ={
+					id:this.uid,
+					avatar:this.$store.state.userMsg.avatar,
+					val:this.inputVal,
+					nickname:this.$store.state.userMsg.nickname,
+					content:this.inputVal,
+					from:this.$store.state.userMsg.id,
+					time:new Date().getTime()
+				}
+				console.log(1)
+				console.log(this.$store.state.oneTalkRenderArr)
+				this.$store.state.oneTalkRenderArr.push(selfRender);
+				let json = {
+					id:this.uid,
+					avatar:this.avatar,
+					nickname:this.nickName,
+					content:this.inputVal,
+					time:new Date().getTime()
+				}
+				//this.$set(this.$store.state.talkOnePeerRenderArr,this.uid.toString(),json);
+				//将发出的最后一条消息存入本地
+				let ownid = this.$store.state.userMsg.id+'';
+				
+				let Liststorage = uni.getStorageSync('talkList')
+				if(Liststorage && Liststorage[ownid] ){
+						console.log(2)
+					if(Liststorage[ownid][this.uid.toString()]){
+						let{notReadNum} = Liststorage[ownid][this.uid.toString()] 
+						json.notReadNum= notReadNum;
+						Liststorage[ownid][this.uid.toString()] =json 
+					}else{
+						Liststorage[ownid][this.uid.toString()]={}
+						Liststorage[ownid][this.uid.toString()] =json 
+					}
+					uni.setStorageSync('talkList',Liststorage)
+					console.log(uni.getStorageSync('talkList'))
+				}else{
+					console.log(3)
+					let talkJsons ={}
+					talkJsons[ownid]={};
+					talkJsons[ownid][this.uid.toString()] =json
+					uni.setStorageSync('talkList',talkJsons)
+					console.log(uni.getStorageSync('talkList'))
+				}
+				//将聊天记录存入本地
+				let Talkstorage = uni.getStorageSync('takeContent')
+				if(Talkstorage &&  Liststorage[ownid] && Liststorage[ownid][this.uid.toString()]){
+					console.log(4)
+					if(Talkstorage[ownid][this.uid.toString()]){
+						console.log(5)
+						Talkstorage[ownid][this.uid.toString()].push(selfRender);
+					}else{
+						console.log(6)
+						Talkstorage[ownid][this.uid.toString()]=[];
+						Talkstorage[ownid][this.uid.toString()].push(selfRender);
+					}
+					uni.setStorageSync('takeContent',Talkstorage);
+				}else{
+					Talkstorage ={}
+					Talkstorage[ownid]={}
+					Talkstorage[ownid][this.uid.toString()]=[];
+					Talkstorage[ownid][this.uid.toString()].push(selfRender);
+					uni.setStorageSync('takeContent',Talkstorage);
+					console.log('我存对了吗',uni.getStorageSync('takeContent'))
+				}
+			
+				this.$emit('sendMsg',selfRender)
+				this.inputVal = ''
+			},
+			scrollWatch(event){
+				 console.log(event)
+				 //计算最低部的值
+				 let  {contentSize,contentOffset} = event;
+				 console.log('最底部的值', (500 * this.rpxExchangePx)-contentSize.height)
+				this.bottomY = (500 * this.rpxExchangePx)-contentSize.height;
+				
+				if(this.bottomY<=contentOffset.y-20){
+					console.log('用户下上划了20')
+					if(this.canGoBottom){
+						this.num--
+					}
+					this.canGoBottom = false;
+					
+				}else{
+					console.log('用户回到了底部')
+					this.canGoBottom = true;
+					this.num =0;
+				}
+			},
+			gotoBottom(){
+				this.scrollTop = 9999999+Math.random()
+			},
+			exchangeTimes(item){ //格式化时间
+				return exchangeTime(item)
+			}
+		}
+	}
+</script>
+
+<style scoped>
+	.talk-one-page{
+		width: 750rpx;
+		height: 750rpx;
+		border-top-left-radius:38rpx;
+		border-top-right-radius:38rpx;
+	}
+	.input-box{
+		width: 750rpx;
+		height: 100rpx;
+		padding: 38rpx;
+		flex-direction: row;
+		align-items: center;
+	}
+	.inputs{
+		padding: 0 20rpx;
+		width: 500rpx;
+		height: 80rpx;
+		background-color: #1C2A37;
+		flex-direction: row;
+		align-items: center;
+		border-radius: 300rpx;
+		color: #FFFFFF;
+	}
+	.send{
+		width: 150rpx;
+		height: 80rpx;
+		background-color:#F72585;
+		border-radius: 205rpx;
+		color: #FFFFFF;
+		flex-direction: row;
+		text-align: center;
+		line-height: 80rpx;
+		margin-left: 24rpx;
+		font-size: 32rpx;
+	}
+	.lists{
+		width: 750rpx;
+		height: 540rpx;
+	}
+	.render-list{
+		width: 750rpx;
+		padding: 0 20rpx;
+	}
+	.avatars{
+		width: 100rpx;
+		height: 100rpx;
+		border-radius: 100rpx;
+	}
+	.tops{
+		width: 750rpx;
+		height: 50rpx;
+		flex-direction: row;
+		justify-content: center;
+		
+	}
+	.times{
+		color: rgba(255,255,255,0.3);
+		font-size: 24rpx;
+	}
+	.contents{
+		padding: 20rpx;
+		border-radius: 20rpx;
+		background-color: #2E3337;
+		margin-left: 30rpx;
+		color: #FFFFFF;
+		font-size: 32rpx;
+		
+	}
+	.lefts{
+		padding: 20rpx;
+		border-radius: 20rpx;
+		background-color: #96EC68;
+		margin-right: 30rpx;
+		font-size: 32rpx;
+	}
+	.bottoms{
+		flex-direction: row;
+		justify-content: flex-start;
+		align-items: center;
+	}
+	.itsMe{
+		justify-content: flex-end;
+	}
+</style>

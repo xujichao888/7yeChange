@@ -1,0 +1,173 @@
+<template>
+	<view class="sort-content">
+		<view class="sort-tab-box">
+			<text :class="{sortTabTextActive:index===curror}" class="sort-tab-text" v-for="(item,index) in sortText" :key="index+'a'" @click="selectSort(index)">{{item}}</text>
+		</view>
+		<swiper class="swiper-box"  :duration="500"  @change="changeCurrent" :current="curror">
+			<swiper-item v-for="(item,index) in renderSortList" :key="index">
+				<list class="listStyle">
+					<cell>
+						<view class="sort-content-header" style="position: relative;">
+							<image style="position: absolute;" class="sort-header-bg" src="/static/icon/headerimg.png" mode="widthFix"></image>
+							<view class="awsome-person" style="position: absolute; top: 140rpx;" >
+								<xu-sortAwesomePerson   v-if="item[1]" :renderJson="item[1]"/>
+								<xu-sortAwesomePerson   v-if="item[0]" :isFirst="true" :renderJson="item[0]"/>
+								<xu-sortAwesomePerson v-if="item[2]"  :renderJson="item[2]"/>
+							</view>
+						</view>
+					</cell>
+					<cell v-if="item.length>0">
+						<view v-for="(val,idx) in item" :key="idx">
+							<xu-sortPersonList  v-if="idx>2" :key="val.id" :renderJson="val" :index="idx" />
+						</view>
+					</cell>
+					<!-- 如果为空需要补齐 -->
+					<cell v-if="item.length<1">
+						<view v-for="(val,idx) in 2" :key="idx">
+							<xu-sortPersonList  :key="val.id" />
+						</view>
+					</cell>
+					<cell>
+						<image class="sort-down" src="/static/icon/bottom.png" mode="widthFix"></image>
+					</cell>
+				</list>
+				
+			</swiper-item>
+		</swiper>
+	</view>
+</template>
+
+<script>
+	import {
+		ReqWebApi
+	} from '@/static/publicJs/requestFun.js';
+	import {
+		getToken
+	} from '@/static/publicJs/token.js';
+	import {
+		getSortMsg
+	} from '@/static/publicJs/requestPath.js'
+	export default {
+		data(){
+			return{
+				sortText:['贡献日榜','势力日榜','贡献总榜','魅力总榜'],
+				curror:0,
+				idxLoad:[false,false,false,false],//保存4个选项卡的加载情况，只加载一次退出后需要清空
+				awesomePersonArr:[],
+				renderSortList:[ //第四名以后的渲染列表
+					[],
+					[],
+					[],
+					[]
+				]
+			}
+		},
+		props:{
+			roomid:String
+		},
+		mounted() {
+			this.getSortMsgByWebApi(0) //进入选项卡加载
+		},
+		methods:{
+			
+			selectSort(idx){ //点了选项卡
+				this.curror=idx
+			},
+			changeCurrent(e){ //轮播改变了
+				this.curror = e.detail.current
+				this.getSortMsgByWebApi(this.curror)
+			},
+			async getSortMsgByWebApi(idx){//请求接口获得排行榜数据
+				if(this.idxLoad[idx]){ //只请求一次
+					return false
+				}
+				this.idxLoad[idx] = true;
+				uni.showLoading({
+					title:'加载中'
+				})
+				console.log(idx+1)
+				let result = await ReqWebApi(getSortMsg+'?type='+(idx+1)+'&roomid='+this.roomid,'GET','',getToken(this),this,'getSortMsgByWebApi',idx+1,true);
+				
+				uni.hideLoading()
+				if(result.data.code==0){
+					//测试数据
+					let arr = [] //下面渲染的数组
+					let json = {
+						"id": 61,
+						"nickname": "测试客服",
+						"avatar": "https://7ye-1254317792.cos.ap-beijing.myqcloud.com/bd1b7524f87b40938efe01ba5309d816.png",
+						"income":99,
+						"sex":1
+						
+					}
+					for(let i=0;i<100;i++){
+						arr.push(json)
+					}
+					this.$set(this.renderSortList,idx,arr)
+					return false
+					//测试数据结束
+					
+					
+					if(result.data.data.length == 0){return false}
+					this.$set(this.renderSortList,idx,result.data.data)
+					console.log('渲染的数据',this.renderSortList)
+				}
+			}
+		}
+	}
+</script>
+
+<style scoped>
+	.sort-content{
+		width: 750rpx;
+		height: 1100rpx;
+		background-color: #7D26C7;
+		border-radius: 36rpx;
+	}
+	.sort-tab-box{
+		width: 750rpx;
+		height: 88rpx;
+		background-color: #7209B7;
+		border-top-left-radius: 36rpx;
+		border-top-right-radius: 36rpx;
+		flex-direction: row;
+		padding: 0 36rpx;
+		justify-content: space-between;
+		align-items: center;
+	}
+	.sortTabTextActive{
+		color: #FFFFFF;
+	}
+	.sort-tab-text{
+		height: 88rpx;
+		color: rgb(150,150,200);
+		font-size: 32rpx;
+		line-height: 88rpx;
+	}
+	.swiper-box{
+		width: 750rpx;
+		height: 1012px;
+		background-color: #691da3;
+	}
+	.listStyle{
+		width: 750rpx;
+		height: 1012rpx;   
+	}
+	.sort-content-header{
+		width: 750rpx;
+		height: 707rpx;
+	}
+	.sort-header-bg{
+		width: 750rpx;
+	}
+	.awsome-person{
+		width: 750rpx;
+		height: 420rpx;
+		padding: 0 100rpx;
+		flex-direction: row;
+		justify-content: space-between;
+	}
+	.sort-down{
+		width: 750rpx;
+	}
+</style>

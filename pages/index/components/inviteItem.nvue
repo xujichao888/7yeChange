@@ -1,0 +1,374 @@
+<template>
+	<view class="invite-item">
+		<image class="photo-img" @click="toInfo" :src="options.avatarimg"></image>
+		<view class="info">
+			<view class="title-content" :style="{paddingBottom: showId ? '0rpx' : '20rpx'}">
+				<view class="title">
+					<view class="title-info" style="min-height:100rpx;">
+						<view class="title-group" @click="toInfo">
+							<text class="name">{{options.nickname}}</text>
+							<view class="addr-content">
+								<image class="addr-icon" v-if="options.citystr" src="/static/img/index/addr.png"></image>
+								<text class="addr">{{options.citystr}}</text>
+							</view>
+						</view>
+						<text v-if="showId" class="user-id">ID: {{options.id}}</text>
+						<view class="age-content">
+							<image v-if="options.sex == 0" class="sex-icon-nv sex-icon" src="/static/icons/index/nv.png"></image>
+							<image v-else-if="options.sex == 1" class="sex-icon-nan sex-icon" src="/static/icons/index/nan.png"></image>
+							<text class="age" v-if="options.age">{{options.age}}岁</text>
+							<text class="age" v-if="options.age && options.constellation"> · </text>
+							<text class="constellation" v-if="options.constellation">{{options.constellation}}座</text>
+							<image v-if="options.level&&options.sex==1" :src="`/static/icons/leve/leve${options.level}.png`" style="width: 100rpx;" mode="widthFix"></image>
+						</view>
+						<view class="height-content" v-if="showInfo">
+							<text class="height" v-if="options.height">{{options.height}}cm</text>
+							<text class="height" v-if="options.height && options.weight"> · </text>
+							<text class="weight" v-if="options.weight">{{options.weight}}kg</text>
+							<text class="height" v-if="(options.height && options.weight) && (sanwei || options.vehicle)"> · </text>
+							<text class="sanwei" v-if="options.sex ==0">{{sanwei}}</text>
+							<text class="sanwei" v-if="options.sex ==1">{{options.vehicle}}</text>
+						</view>
+					</view>
+					<view class="sign-btn-group">
+						<slot name="right_btn">
+							<!-- <view class="sign-btn-group">
+								<view class="sign-btn btnDfaultBg">
+									<text class="sign-btn-text">按钮</text>
+								</view>
+							</view> -->
+						</slot>
+					</view>
+				</view>
+			</view>
+			<view v-if="showId && tags" class="tags">
+				<text class="tags-title">标签：</text>
+				<view class="tags-group">
+					<text class="tags-text">{{tags}}</text>
+				</view>
+			</view>
+			<slot name="content" v-if="showContent">
+				<view class="message">
+					<text class="text">职业:{{options.vocation}}</text>
+					<text class="text">兴趣爱好:{{options.hobbystr}}</text>
+					<text class="text">空闲时间:{{options.freetime}}</text>
+					<text class="text">最近想去:{{options.travellocation}}</text>
+					<text class="text">喜欢类型:{{options.target}}</text>
+					<text class="text">喜爱的食物:{{options.food}}</text>
+				</view>
+			</slot>
+			<slot name="photo">
+				<view class="trend" :style="{'margin-top': (options.userdescribe !== '' || options.images.length) ? '10px' : '0px'}">
+					<text class="trend-text" v-if="options.userdescribe">{{options.userdescribe}}</text>
+					<view class="trend-img" v-if="options.images.length">
+						<image mode="aspectFill" @click="preview(options.images, index)" class="trend-img-item" v-for="(item, index) in options.images" :src="item.image" :key="item.id"></image>
+					</view>
+					<view class="trend-date-wrap">
+						<text class="trend-text-date" v-if="options.remark">{{options.remark}}</text>
+						<text class="trend-date" v-if="!options.info || options.info && options.isSelf">{{options.starttime}} ~ {{options.endtime}}</text>
+					</view>
+				</view>
+			</slot>
+			<slot name="code"></slot>
+		</view>
+	</view>
+</template>
+
+<script>
+	import {
+		formatCity
+	} from '@/utils/param.js'
+	import cup from "@/common/cup.js"
+	export default {
+		props: {
+			options: {
+				type: Object,
+				default: function(e) {
+					return {}
+				}
+			},
+			showContent:{
+				type:Boolean,
+				default:true
+			},
+			showId:{
+				type:Boolean,
+				default:false
+			}
+		},
+		data(){
+			return {
+				
+			}
+		},
+		computed:{
+			sanwei(){
+				if(this.options.sex == 0){
+					let str = ""
+					if (this.options.bust) str += `·${this.options.bust}`
+					if (this.options.waist) str += `/${this.options.waist}`
+					if (this.options.hips) str += `/${this.options.hips}`
+					if (this.options.cup) str += `/${this.options.cup}`
+					return str
+				}
+				return null
+			},
+			addr(){
+				let str = ""
+				if(this.options.city && this.options.city.length){
+					for(let i=0; i<this.options.city.length; i++){
+						let addr = formatCity(this.options.city[i])
+						if(addr.province && addr.city){
+							str += `${addr.province.label}-${addr.city.label}`
+						}
+					}
+				}
+				return str
+			},
+			tags(){
+				if(this.options.tag && this.options.tag.length){
+					let arr = this.options.tag.map(item=>{
+						return item.tagname
+					})
+					return arr.join(",")
+				}
+				return ""
+			},
+			showInfo(){
+				if(!this.options.height && !this.options.weight && !this.sanwei && 
+				this.options.vehicle === ""){
+					return false
+				}
+				return true
+			}
+		},
+		methods: {
+			preview(url,index) {
+				let imgs = url.map(item=>item.image)
+				uni.previewImage({
+					current:index,
+					urls: imgs
+				});
+			},
+			toInfo(){
+				uni.$emit("inviteInfo", this.options)
+			}
+		}
+	}
+</script>
+
+<style scoped>
+	.invite-item{
+		flex-direction: row;
+		width: 690rpx;
+		margin-top: 10px;
+		margin-left: 30rpx;
+		margin-right: 30rpx;
+		background-color: white;
+		border-top-right-radius: 16rpx;
+		border-bottom-right-radius: 16rpx;
+		border-top-left-radius: 16rpx;
+		border-bottom-left-radius: 16rpx;
+		padding-left: 10px;
+		padding-right: 10px;
+	}
+	.photo-img{
+		margin-top: 10px;
+		width: 100rpx;
+		height: 100rpx;
+		border-radius: 50%;
+	}
+	.info{
+		width: 540rpx;
+		background-color: white;
+		border-top-right-radius: 16rpx;
+		border-bottom-right-radius: 16rpx;
+		padding-top: 10px;
+		padding-bottom: 10px;
+		padding-left: 10px;
+		flex-direction: column;
+		justify-content: space-between;
+	}
+	.title-content{
+		display: flex;
+		flex-direction: column;
+		padding-bottom: 20rpx;
+	}
+	.title{
+		flex-direction: row;
+		align-items: flex-start;
+		justify-content: space-between;
+	}
+	.title-group{
+		flex-direction: row;
+		align-items: center;
+		padding-bottom: 2px;
+		width: 390rpx;
+	}
+	.name{
+		color: #555555;
+		font-size: 30rpx;
+		font-weight: bold;
+		overflow: hidden;
+		text-overflow:ellipsis;  
+		/* #ifndef APP-PLUS */
+		white-space: nowrap;
+		/* #endif */
+		/* #ifdef APP-PLUS */
+		lines:1;
+		text-overflow:ellipsis;
+		/* #endif */
+	}
+	.addr-content{
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		margin-left: 10rpx;
+	}
+	.addr-icon{
+		width: 17rpx;
+		height: 20rpx;
+		margin-top: -2rpx;
+	}
+	.addr{
+		font-size: 26rpx;
+		color: #e1b893;
+		width: 190rpx;
+		margin-left: 2px;
+		overflow: hidden;
+		text-overflow:ellipsis;  
+		/* #ifndef APP-PLUS */
+		white-space: nowrap;
+		/* #endif */
+		/* #ifdef APP-PLUS */
+		lines:1;
+		text-overflow:ellipsis;
+		/* #endif */
+	}
+	.sex-icon{
+		margin-right: 2px;
+		transform: translateY(-1px);
+	}
+	.sex-icon-nv{
+		width: 14rpx;
+		height: 21rpx;
+	}
+	.sex-icon-nan{
+		width: 19rpx;
+		height: 20rpx;
+	}
+	.sign-btn-group{
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+	}
+	.sign-btn{
+		background-color: #e1b893;
+		width: 128rpx;
+		height: 48rpx;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: 30rpx;
+	}
+	.btnDfaultBg{
+		background-color: #e6e6e6;
+	}
+	.sign-btn-text{
+		color: #595757;
+		font-size: 26rpx;
+		line-height: 28rpx;
+	}
+	.num-text{
+		font-size: 24rpx;
+		color: #e1b893;
+		margin-top: 5px;
+	}
+	.numDefaultColor{
+		color: #999999;
+	}
+	.age-content,.height-content{
+		display: flex;
+		flex-direction: row;
+		padding-bottom: 3px;
+		align-items: center;
+	}
+	.constellation{
+		font-size: 24rpx;
+		color: #555555;
+	}
+	.age,.height,.weight,.sanwei,.constellation{
+		font-size: 24rpx;
+		color: #555555;
+	}
+	.message{
+		flex-direction: column;
+	}
+	.text{
+		font-size: 28rpx;
+		color: #898989;
+		padding: 2px;
+	}
+	.trend{
+		margin-top: 10px;
+		flex-direction: column;
+	}
+	.trend-text{
+		font-size: 28rpx;
+		color: #333333;
+		margin-bottom: 15rpx;
+		line-height: 30rpx;
+	}
+	.trend-text-date{
+		font-size: 28rpx;
+		color: #333333;
+		padding-bottom: 5rpx;
+	}
+	.trend-img{
+		flex-direction: row;
+		flex-wrap: wrap;
+	}
+	.trend-img-item{
+		width: 120rpx;
+		height: 120rpx;
+		margin-right: 10rpx;
+		margin-top: 10rpx;
+	}
+	.trend-date-wrap{
+		margin-top: 20rpx;
+	}
+	.trend-date{
+		color: #999999;
+		font-size: 26rpx;
+	}
+	.user-id{
+		color: #555555;
+		font-size: 26rpx;
+		padding-bottom: 2px;
+	}
+	.tags{
+		display: flex;
+		flex-direction: row;
+	}
+	.tags-title{
+		font-size: 26rpx;
+		color: #555555;
+	}
+	.tags-group{
+		display: flex;
+		flex-direction: row;
+		flex-wrap: wrap;
+		align-items: center;
+	}
+	.tags-text{
+		color: #999999;
+		font-size: 26rpx;
+		padding-bottom: 5rpx;
+		padding-right: 5rpx;
+	}
+	.title-info{
+		display: flex;
+		flex-direction: column;
+		justify-content: space-between;
+	}
+</style>

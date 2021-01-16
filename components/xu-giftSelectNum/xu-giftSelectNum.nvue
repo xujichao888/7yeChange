@@ -1,0 +1,68 @@
+<template>
+	<view class="gift-selectNum">
+		<view class="boxss">
+			<view class="aaa" 
+				v-for="(item,index) in arr" 
+				:key="index" 
+				:class="{active:item.num == selectNum}"
+				@click="changeSelectNum(index)"
+			>
+				<text class="texts">{{item.num}}</text>
+			</view>
+		</view>
+	</view>
+</template>
+
+<script>
+	export default {
+		props:{
+			selectNum:Number
+		},
+		data(){
+			return{
+				arr:[
+					{isActive:false,num:1},
+					{isActive:false,num:5},
+					{isActive:false,num:520},
+					{isActive:false,num:1314},
+				]
+			}
+		},
+		methods:{
+			changeSelectNum(idx){
+				this.$emit('changeSelectNum',this.arr[idx].num)
+				
+			}
+		}
+	}
+</script>
+
+<style scoped>
+	.gift-selectNum{
+		width: 750rpx;
+		height: 500rpx;
+		background-color: #021526;
+	}
+	.boxss{
+		width: 750rpx;
+		height: 180rpx;
+		flex-direction: row;
+		justify-content: space-around;
+		align-items: center;
+	}
+	.aaa{
+		width: 130rpx;
+		height: 60rpx;
+		background-color: rgba(255,255,255,0.3);
+		flex-direction: row;
+		justify-content: center;
+		align-items: center;
+		border-radius: 10rpx;
+	}
+	.active{
+		background-color: #7060DC;
+	}
+	.texts{
+		color: #FFFFFF;
+	}
+</style>

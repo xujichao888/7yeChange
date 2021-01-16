@@ -1,0 +1,431 @@
+{
+	"easycom": {
+		// 下载安装的方式需要前面的"@/"，npm安装的方式无需"@/"
+		// 下载安装方式
+		
+		"autoscan": true,
+		"custom": {
+			"^u-(.*)": "@/uview-ui/components/u-$1/u-$1.vue",
+			"^d-(.*)": "@/dnvue-ui/components/d-$1/d-$1",
+			"^xu-(.*)": "@/components/xu-$1/xu-$1.nvue",
+			"^vue-file-(.*)": "packageName/path/to/vue-file-$1.nvue"
+		}
+		// npm安装方式
+		// "^u-(.*)": "uview-ui/components/u-$1/u-$1.vue"
+	},
+	"pages": [ //pages数组中第一项表示应用启动页，参考：https://uniapp.dcloud.io/collocation/pages
+		// {
+		// 	"path": "pages/test/test",
+		// 	"style": {
+		// 		"navigationBarTitleText": "测试"
+		// 	}
+		// },
+		// {
+		// 	"path": "pages/guide/guide",
+		// 	"style": {
+		// 		"navigationBarTitleText": "引导页",
+		// 		"navigationBarTextStyle": "white",
+		// 		"app-plus": {
+		// 			"titleNView": false,
+		// 			"softinputMode": "adjustResize"
+		// 		}
+		// 	}
+		// },
+		{
+			"path": "pages/index/index",
+			"style": {
+				"navigationBarTitleText": "推荐",
+				"navigationBarTextStyle": "black",
+				"app-plus": {
+					"titleNView": false,
+					"softinputMode": "adjustResize"
+				}
+			}
+		},
+		{
+			"path": "pages/me/me",
+			"style": {
+				"navigationBarTitleText": "我的",
+				"navigationBarBackgroundColor": "#F8F8F8",
+				"app-plus": {
+					"titleNView": false //禁用原生导航栏  
+				}
+			}
+		},
+		{
+			"path": "pages/attestation/index",
+			"style": {
+				"navigationBarTitleText": "人工认证",
+				"app-plus": {
+					// 将回弹属性关掉
+					"bounce": "none"
+				}
+			}
+		},
+		{
+			"path": "pages/authority/index",
+			"style": {
+				"navigationBarTitleText": "权限管理",
+				"app-plus": {
+					// 将回弹属性关掉
+					"bounce": "none"
+				}
+			}
+		},
+		{
+			"path": "pages/index/feedInfo",
+			"style": {
+				"navigationBarTitleText": "反馈内容"
+			}
+		},
+		{
+			"path": "pages/index/inviteInfo",
+			"style": {
+				"navigationBarTitleText": "邀约详情"
+			}
+
+		},
+		{
+			"path": "pages/user/headSelect",
+			"style": {
+				"navigationBarTitleText": "选择头像",
+				"app-plus": {
+					// 将回弹属性关掉
+					"bounce": "none",
+					"titleNView": {
+						"buttons": [{
+							"type": "none",
+							"float": "right",
+							"text": "确认",
+							"fontSize": "14",
+							"color": "#C1885C"
+						}]
+					}
+				}
+			}
+		},
+		{
+			"path": "pages/forward/index",
+			"style": {
+				"navigationBarTitleText": "选择",
+				"app-plus": {
+					"titleNView": false //禁用原生导航栏  
+				}
+			}
+
+		},
+		{
+			"path": "pages/tagView/index",
+			"style": {
+				"navigationBarTitleText": "设置标签",
+				"navigationBarTextStyle": "black",
+				"app-plus": {
+					"titleNView": false //禁用原生导航栏  
+				}
+			}
+
+		},
+		{
+			"path": "pages/party/party",
+			"style": {
+				"navigationBarTitleText": "派对",
+				"app-plus": {
+					"titleNView": false //禁用原生导航栏  
+				}
+			}
+		},
+		{
+			"path": "pages/message/message",
+			"style": {
+				"navigationBarTitleText": "消息"
+			}
+		},
+		{
+			"path": "pages/safe/index",
+			"style": {
+				"navigationBarTitleText": "账号与安全"
+			}
+		},
+		{
+			"path": "pages/modifyPasswork/index",
+			"style": {
+				"navigationBarTitleText": "修改密码"
+			}
+		},
+		{
+			"path": "pages/service/service",
+			"style": {
+				"navigationBarTitleText": "消息",
+				"app-plus": {
+					"titleNView": false //禁用原生导航栏  
+				}
+			}
+		},
+		{
+			"path": "pages/vip/index",
+			"style": {
+				"navigationBarTitleText": "会员",
+				"app-plus": {
+					// 将回弹属性关掉
+					"bounce": "none"
+				}
+			}
+		},
+		{
+			"path": "pages/index/inviteInfoList",
+			"style": {
+				"navigationBarTitleText": "",
+				"app-plus": {
+					"titleNView": false //禁用原生导航栏  
+				}
+			}
+		},
+		{
+			"path": "pages/me/me",
+			"style": {
+				"navigationBarTitleText": "我的",
+				"navigationBarBackgroundColor": "#F8F8F8",
+				"app-plus": {
+					"titleNView": false //禁用原生导航栏  
+				}
+			}
+		},
+
+		{
+			"path": "pages/chat-view/chat-view",
+			"style": {
+				"navigationBarTitleText": "",
+				"app-plus": {
+					"titleNView": {
+						"autoBackButton": false,
+						"buttons": [{
+							"type": "back",
+							"float": "left"
+						}]
+					}
+				}
+			}
+		},
+		{
+			"path": "pages/login/login",
+			"style": {
+				"navigationBarTitleText": "登录",
+				"navigationBarTextStyle": "white",
+				"app-plus": {
+					"titleNView": false, //禁用原生导航栏  
+					"bounce": "none"
+				}
+			}
+		},
+		{
+			"path": "pages/login/code",
+			"style": {
+				"navigationBarTitleText": "请输入验证码"
+			}
+		},
+		{
+			"path": "pages/login/mobile",
+			"style": {
+				"navigationBarTitleText": "忘记密码"
+			}
+		},
+		{
+			"path": "pages/password/password",
+			"style": {
+				"navigationBarTitleText": "设置密码",
+				"app-plus": {
+					"titleNView": false //禁用原生导航栏  
+				}
+			}
+		},
+		{
+			"path": "pages/user/sex",
+			"style": {
+				"navigationBarTitleText": "性别",
+				"app-plus": {
+					"titleNView": false //禁用原生导航栏  
+				}
+			}
+		},
+		{
+			"path": "pages/user/nickName",
+			"style": {
+				"navigationBarTitleText": "设置名称",
+				"app-plus": {
+					"titleNView": false //禁用原生导航栏  "
+				}
+			}
+		},
+		{
+			"path": "pages/index/filter",
+			"style": {
+				"navigationBarTitleText": "筛选"
+			}
+		},
+		{
+			"path": "pages/user/info",
+			"style": {
+				"navigationBarTitleText": "个人信息",
+				"app-plus": {
+					"titleNView": {
+						"autoBackButton": false,
+						"buttons": [{
+								"type": "back",
+								"float": "left"
+							},
+							{
+								"type": "noen",
+								"float": "right",
+								"text": "保存",
+								"fontSize": "15"
+
+							}
+						]
+					}
+				}
+			}
+		},
+		{
+			"path": "pages/service/userList",
+			"style": {
+				"navigationBarTitleText": "用户列表",
+				"app-plus": {
+					"titleNView": {
+						"buttons": [{
+							"fontSrc": "/static/font/iconfont.ttf",
+							"text": "\ue672",
+							"fontSize": "22px"
+
+						}]
+					}
+				}
+			}
+		},
+		{
+			"path": "pages/user/userList",
+			"style": {
+				"navigationBarTitleText": "用户列表",
+				"app-plus": {
+					"titleNView": {
+						"buttons": [{
+							"fontSrc": "/static/font/iconfont.ttf",
+							"text": "\ue672",
+							"fontSize": "22px"
+
+						}]
+					}
+				}
+			}
+		},
+		{
+			"path": "pages/service/filter",
+			"style": {
+				"navigationBarTitleText": "用户筛选"
+			}
+		},
+		{
+			"path": "pages/service/compile",
+			"style": {
+				"navigationBarTitleText": "编辑信息"
+			}
+		},
+		{
+			"path": "pages/service/addRoom",
+			"style": {
+				"navigationBarTitleText": "创建房间"
+			}
+		},
+		{
+			"path": "pages/room/room",
+			"style": {
+				"navigationBarTitleText": "加入房间...",
+				"app-plus":{
+					"titleNView":false
+				}
+			}
+		},
+
+		{
+			"path": "pages/payment/payment",
+			"style": {
+				"navigationBarTitleText": "支付"
+			}
+		},
+		{
+			"path": "pages/service/createUser",
+			"style": {
+				"navigationBarTitleText": "创建用户"
+			}
+		},
+
+		{
+			"path": "pages/cropImg/cropImg",
+			"style": {
+				"navigationBarTitleText": "图片加载中...",
+				"app-plus": {
+					"titleNView": {
+						"autoBackButton": false,
+						"buttons": [{
+								"type": "back",
+								"float": "left"
+							},
+							{
+								"type": "noen",
+								"float": "right",
+								"text": "下一步",
+								"fontSize": "14",
+								"width": "60"
+							}
+						]
+					}
+				}
+			}
+		}
+	],
+	"globalStyle": {
+		"navigationBarTextStyle": "black",
+		"navigationBarTitleText": "7ye",
+		"navigationBarBackgroundColor": "#F8F8F8",
+		"backgroundColor": "#F8F8F8",
+		"pageOrientation": "portrait"
+	},
+	"tabBar": {
+		"color": "#909399",
+		"selectedColor": "#303133",
+		"backgroundColor": "#f6f6f9",
+		"borderStyle": "#ebebeb",
+		"list": [{
+				"iconPath": "/static/tabbar/index.png",
+				"selectedIconPath": "/static/tabbar/index_select.png",
+				"text": "推荐",
+				"pagePath": "pages/index/index"
+			},
+			{
+				"iconPath": "/static/tabbar/party.png",
+				"selectedIconPath": "/static/tabbar/party_select.png",
+				"text": "派对",
+				"pagePath": "pages/party/party"
+			},
+			{
+				"iconPath": "/static/tabbar/message.png",
+				"selectedIconPath": "/static/tabbar/message_select.png",
+				"text": "消息",
+				"pagePath": "pages/message/message"
+			},
+			{
+				"iconPath": "/static/tabbar/me.png",
+				"selectedIconPath": "/static/tabbar/me_select.png",
+				"text": "我的",
+				"pagePath": "pages/me/me"
+			}
+		]
+	},
+	"condition": { //模式配置，仅开发期间生效
+		"current": 0, //当前激活的模式(list 的索引项)
+		"list": [{
+			"name": "", //模式名称
+			"path": "", //启动页面，必选
+			"query": "" //启动参数，在页面的onLoad函数里面得到
+		}]
+	}
+}

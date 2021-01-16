@@ -1,0 +1,1008 @@
+<template>
+	<view class="content">
+		<view class="tab-group">
+			<text class="tab-text">发布位置</text>
+			<view class="picker-group">
+				<picker @change="bindPickerChange" mode=selector :value="index" :range="array" range-key="name">
+					<view class="picker-label">
+						<text class="tab-text tab-type">{{array[index].name}}</text>
+						<uni-icons class="arrowright" type="arrowright" color="#999999" size="20" />
+					</view>
+				</picker>
+			</view>
+		</view>
+		<view class="">
+			<view class="">
+				<view class="push-groupuser-group" v-if="index == 0">
+					<view class="push-group-title">
+						<text class="size-14 color-153">用户</text>
+						<view class="push-add-btn" @click="ctrateUser">
+							<uni-icons type="plus" color="#12c6ab" size="14" />
+							<text class="push-add-btn-text">创建用户</text>
+						</view>
+					</view>
+					<view class="push-user-item">
+						<view class="push-user" v-for="(item, index) in userList" :key="item.id" style="psoition:relative;">
+							<view class="push-user-group" :style="{'padding-left': (index + 1)%2 == 0 ? '15rpx' : '30rpx'}">
+								<image mode="aspectFill" class="push-user-avatar" :src="item.res.path"></image>
+								<view class="push-user-info">
+									<image class="push-user-avatr" :src="item.avatarimg"></image>
+									<view class="push-user-wrap">
+										<text class="push-user-name">{{item.nickname}}</text>
+										<view class="push-user-age">
+											<text class="push-user-age-text" v-if="item.age">{{item.age}}岁</text>
+											<text class="push-user-age-text" v-if="item.constellation"> · {{item.constellation}}座</text>
+										</view>
+									</view>
+								</view>
+								<view class="delete-icon-7ye" :style="{'left': (index + 1)%2 == 0 ? '1px' : '7px'}"
+								 style="position: absolute; top: 15rpx; width: 20px; height: 20px;background-color: white;"></view>
+								<uni-icons type="clear" color="#999999" size="25" @click="deleUser(index)" :style="{'left': (index + 1)%2 == 0 ? '1px' : '7px'}"
+								 style="position: absolute; top: 15rpx;" />
+							</view>
+						</view>
+						<view class="push-user" style="psoition:relative;" @click="toUserInfo">
+							<view class="bg-246" :style="{'margin-left': userList.length %2 == 0 ? '30rpx' : '15rpx'}">
+								<uni-icons type="plusempty" color="#abb1b7" size="25" />
+							</view>
+							<view class="push-user-info"></view>
+						</view>
+					</view>
+					<view class="select_tag">
+						<text class="size-14 color-153">谁可以看</text>
+						<picker @change="typePickerChange" mode=selector :value="typeIndex" :range="typeArray" range-key="name">
+							<view class="picker-label">
+								<text class="size-14 color-153">{{typeArray[typeIndex].name}}</text>
+								<uni-icons class="arrowright" type="arrowright" color="#999999" size="18" />
+							</view>
+						</picker>
+					</view>
+					<view class="tagwrap" v-if="typeIndex == 2">
+						<text class="size-14 color-153" @click="showTagselect" :class="{'tag-active':tagActive}">{{tagName}}</text>
+						<uni-icons class="arrowright" type="arrowright" color="#999999" size="18" />
+					</view>
+					<view class="tagwrap" v-if="typeIndex == 3">
+						<text class="size-14 color-153" @click="toUserInfo({authority:1})" :class="{'tag-active':tagActive}">{{tagName}}</text>
+						<uni-icons class="arrowright" type="arrowright" color="#999999" size="18" />
+					</view>
+				</view>
+				<view class="user-groupuser-group" v-if="index == 1">
+					<text class="user-title">选择用户</text>
+					<view class="user-item">
+						<view class="user" v-for="(item, index) in userList" :key="item.id" style="psoition:relative;">
+							<image class="user-avatar" :src="item.avatarimg"></image>
+							<text class="nickname">{{item.nickname}}</text>
+							<uni-icons class="delete-icon-7ye" type="clear" color="#999999" size="25" @click="deleUser(index)" style="position: absolute; left: -5rpx; top: -5rpx;" />
+						</view>
+						<view class="icon-btn" @click="toUserInfo" v-if="index!= 0 || !userList.length">
+							<uni-icons type="plusempty" color="#333333" size="25" />
+						</view>
+					</view>
+				</view>
+			</view>
+			<view class="group-cell" v-if="index == 1">
+				<view class="form-item form-item-group-date">
+					<text class="tab-text">邀约时间</text>
+					<view class="form-item-date">
+						<view class="date-start">
+							<picker mode="date" :value="starttime" :start="startDate" :end="endDate" @change="bindDateChange($event, 'starttime')">
+								<text class="text-30-col-9">{{starttime || '开始时间'}}</text>
+							</picker>
+						</view>
+						<text class="text-30-col-9"> ~ </text>
+						<view class="date-end">
+							<picker mode="date" :value="endtime" :start="startDate2" @change="bindDateChange($event, 'endtime')">
+								<text class="text-30-col-9">{{endtime || '结束时间'}}</text>
+							</picker>
+						</view>
+					</view>
+				</view>
+				<view class="form-item form-item-group-date">
+					<text class="tab-text tab-text-textarea">邀约人数</text>
+					<input type="number" class="uni-input text-30-col-9" placeholder="请输入..." v-model="peoples" />
+				</view>
+				<view class="form-item form-item-textarea">
+					<text class="tab-text tab-text-textarea">邀约文字</text>
+					<textarea class="uni-textarea" placeholder="请输入..." v-model="remark" />
+					</view>
+			</view>
+			<view class="feed-group" v-if="index == 2">
+				<view class="form-item-textarea m30">
+					<textarea class="uni-textarea" placeholder="请输入..." v-model="content" />
+				</view>
+				<view class="photot-group">
+					<view class="photot-item" style="psoition:relative;" v-for="(item, index) in phtotImgs" :key="item" :class="{ 'photot-left' : index > 0}">
+						<image mode="aspectFill" class="phoho" :src="item" @click="prevImg(item)"></image>
+						<uni-icons type="clear" color="#999999" size="25" @click="deletePhoto(index)" style="position: absolute; right: 0rpx; top: 0rpx;" />
+					</view>
+					<view class="photo-icon-btn" @click="uploadFile" :class="{ 'photot-left' : phtotImgs.length > 0}" v-if="phtotImgs.length < maxLen">
+						<uni-icons type="plusempty" color="#999999" size="25" />
+					</view>
+				</view>
+			</view>
+		</view>
+		<view class="footer-btn-group">
+			<button class="btn warning-btn" @click="publishHandle"><text class="warning-btn-text">发布</text></button>
+		</view>
+		<upload-progress :show="progressShow" :percent='percent' @uploadEnd="uploadEnd"></upload-progress>
+		<view class="">
+			<uni-popup id="popupSelect" ref="popupSelect" type="bottom">
+				<uni-popup-select :data="tagArray" :val="tagVal" @selectChange="selectChange" @cancel="cancel"></uni-popup-select>
+			</uni-popup>
+		</view>
+	</view>
+</template>
+
+<script>
+	import uploadProgress from '@/components/upload-progress/progress.vue'
+	import uniPopupSelect from '@/components/uni-popup-select/uni-popup-select.vue'
+	import {
+		mapGetters,
+		mapMutations
+	} from 'vuex'
+	import {baseUrl} from "@/common/baseUrl.js"
+	import {
+		publish_invite,
+		publish_recom,
+		batch_recommend,
+		get_tag
+	} from "@/common/http.nvue.api.js"
+	import uniIcons from "@/components/uni-icons/uni-icons.vue"
+	import {
+		getDate,
+		getNowDate
+	} from '@/utils/param.js'
+	export default {
+		components:{
+			uniIcons,
+			uploadProgress,
+			uniPopupSelect
+		},
+		data() {
+			return {
+				peoples:1,
+				authority_users:[],
+				authority:0,
+				tagActive:false,
+				tagName:'选择标签',
+				tagArray:[],
+				tagVal:[],
+				typeIndex:0,
+				progressShow:false,
+				percent:0,
+				uploadTask:null,
+				maskClass: {
+					'position': 'fixed',
+					'bottom': 0,
+					'top': 0,
+					'left': 0,
+					'right': 0,
+					'background-color': 'rgba(255, 255, 255, 1',
+					'display': 'flex',
+					'align-items': 'center'
+				},
+				typeArray:[
+					{
+							id: 0,
+							name: "全部"
+						},
+						{
+							id: 1,
+							name: "已认证/已付费"
+						},
+						{
+							id: 2,
+							name: "指定标签"
+						},
+						{
+							id: 4,
+							name: "指定用户"
+						}
+				],
+				array: [{
+						id: 0,
+						name: "推荐"
+					},
+					{
+						id: 1,
+						name: "邀约"
+					},
+					{
+						id: 2,
+						name: "反馈"
+					}
+				],
+				index: 0,
+				userList:[],
+				startDate2:getNowDate(),
+				startDate:getNowDate(),
+				endDate:getDate('end'),
+				starttime:"",
+				endtime:"",
+				remark:"",
+				content:"",
+				maxLen:9,
+				phtotImgs:[],
+				phtotFiles:[]
+			}
+		},
+		created() {
+			uni.$on('addUsers', this.addUsers)
+			uni.$on('publishAddUser', this.addUsers)
+			this.getTag()
+		},
+		beforeDestroy() {
+			uni.$off('addUsers', this.addUsers)
+			uni.$off('publishAddUser', this.addUsers)
+			this.setCropUser({})
+		},
+		computed: {
+			...mapGetters([
+				'userInfo',
+				'cropUsers'
+			]),
+		},
+		methods: {
+			...mapMutations([
+				"setCropUser"
+			]),
+			prevImg(img) {
+				uni.previewImage({
+					urls:[img]
+				});
+			},
+			getTag(){
+				get_tag().then(res=>{
+					if(res.code == 0){
+						this.tagArray = res.data || []
+						this.tagArray = this.tagArray.map(item=>{
+							return {
+								...item,
+								checked:false
+							}
+						})
+					} else {
+						uni.showToast({
+							title:res.msg,
+							icon:"none"
+						})
+					}
+				}).catch(err=>{
+					console.log(err)
+				})
+			},
+			selectChange(val){
+				if(!val.length) return
+				this.tagVal = val
+				this.tagName = ""
+				for(let i=0; i<this.tagArray.length; i++){
+					if(this.tagVal.includes(i + 1)){
+						this.tagArray[i].checked = true
+						this.tagName += this.tagArray[i].tagname + ','
+						console.log(this.tagName, 'this.tagName')
+					} else {
+						this.tagArray[i].checked = false
+					}
+				}
+				
+				if(!this.tagVal.length) this.tagName = "选择标签"
+				else this.tagName = this.tagName.substring(0, this.tagName.length -1)
+				
+				this.cancel()
+			},
+			cancel(){
+				this.$refs.popupSelect.close()
+				setTimeout(()=>{
+					uni.showTabBar()
+					if(!this.tagVal.length) this.tagActive = false
+					else this.tagActive = true
+				},300)
+			},
+			typePickerChange(e){
+				if(this.typeIndex != e.detail.value){
+					this.typeIndex = e.detail.value
+					this.tagActive = false
+					if(this.typeIndex == 2){
+						for(let i=0; i<this.tagArray.length; i++){
+							this.tagArray[i].checked = false
+						}
+						this.tagVal = []
+						this.tagName = "选择标签"
+					} else{
+						this.$refs.popupSelect.close()
+						if(this.typeIndex == 3){
+							this.authority_users = []
+							this.tagName = "选择用户"
+						}
+					} 
+				}
+			},
+			showTagselect(){
+				uni.hideTabBar()
+				this.$nextTick(()=>{
+					this.$refs.popupSelect.open()
+				})
+			},
+			bindPickerChange(e) {
+				if(this.index != e.detail.value){
+					this.userList = []
+					this.setCropUser({})
+					this.peoples = 1 
+				}
+				this.index = e.detail.value
+			},
+			toUserInfo({authority=0}){
+				this.authority = authority
+				let authority_users_id = this.authority_users.map(item=>item.id)
+				uni.navigateTo({
+					url:`/pages/service/userList?addUser=1&index=${this.index}&authority=${authority}&authority_users_id=${JSON.stringify(authority_users_id)}`
+				})
+			},
+			addUsers(users){
+				if(this.index == 0){
+					if(this.authority == 0){
+						this.uploadImg(users)
+					} else {
+						let user_id = this.authority_users.map(item=>item.id)
+						for(let i=0; i<users.length; i++){
+							if(!user_id.includes(users[i].id)){
+								this.authority_users.push(users[i])
+							} else {
+								let index = this.authority_users.findIndex(item =>item.id == users[i].id)
+								this.authority_users.splice(index,1)
+							}
+						}
+						if(!this.authority_users.length){
+							this.tagName = "选择用户"
+							this.tagActive = false
+						} else {
+							let names = this.authority_users.map(item=>item.nickname)
+							this.tagName = names.join(",")
+							this.tagActive = true
+						}
+					}
+					
+				} else {
+					let user_id = this.userList.map(item=>item.id)
+					for(let i=0; i<users.length; i++){
+						if(!user_id.includes(users[i].id)){
+							this.userList.push(users[i])
+						}
+					}
+				}
+			},
+			uploadImg(users){
+				let token = uni.getStorageSync("token")
+				
+				this.uploadTask = uni.uploadFile({
+				            url: `${baseUrl}/fileupload/addimg`, //仅为示例，非真实的接口地址
+				            timeout:10000,
+				          filePath: users[0].res.path, // 图片本地路径
+				            name: 'file', // 写死
+				            // 请求头一定要加，否则 iOS 图片上传会失败 安卓 可有可无
+				            header: {
+				            token,
+				                'content-type': 'multipart/form-data' 
+				            },
+				            formData: {
+				                name: users[0].id // 后端接口要求的名称
+				                // file: tempFilePath   // 这里一定不能加 file 加了 iOS 图片上传会失败 安卓无此问题
+				            },
+				            success: (res) => {
+				                console.log(res,'5')
+				                if(res.statusCode && res.statusCode != 200){
+				                  uni.showToast({
+				                    title: 'code:' + res.statusCode + '图片上传失败',
+				                    icon: "none"
+				                  })
+								  this.uploadEnd()
+				                  return
+				                }
+				                let result = JSON.parse(res.data)
+				                if (result.code == 0) {
+				                  users[0].res.path = result.data[0]
+				                  let user_id = this.userList.map(item=>item.id)
+				                  for(let i=0; i<users.length; i++){
+				                    if(!user_id.includes(users[i].id)){
+				                      this.userList.push(users[i])
+				                    }
+				                  }
+				                  console.log(users, 'uuu')
+				                } else {
+				                  uni.showToast({
+				                    title: result.msg,
+				                    icon: "none"
+				                  })
+				                }
+								this.uploadEnd()
+				            },
+				            fail: (err) => {
+								this.uploadEnd()
+				                console.log(err)
+				            }
+				        });
+				this.progressShow = true
+				//this.progressUpdate()
+			},
+			progressUpdate(){
+				if(this.uploadTask){
+					this.uploadTask.onProgressUpdate(res=>{
+						this.percent = res.progress
+						if(this.percent == 100){
+							setTimeout(()=>{
+								this.uploadEnd()
+							},1500)
+						}
+					})
+				}
+			},
+			uploadEnd(){
+				this.progressShow = false
+				setTimeout(()=>{
+					this.percent = 0
+				},300)
+			},
+			bindDateChange(e, data){
+				if(data == 'starttime'){
+					this.startDate2 = e.detail.value
+				} else {
+					this.endDate = e.detail.value
+				}
+				this[data] = e.detail.value
+			},
+			publishHandle(){
+				let data = {
+					releaseuserid:this.userInfo.id,
+				}
+				if(!this.userList.length && (this.index < 2)){
+					if(this.endtime == '' || this.starttime == ''){
+						uni.showToast({
+							title:"请选择用户！",
+							icon:"none"
+						})
+						return
+					}
+				}
+				if(this.index == 0){
+					data.userid = this.userList.map(item=>item.id).join(",")
+					this.publishRecom(data)
+				} else if(this.index == 1) {
+					data.starttime = this.starttime
+					data.endtime = this.endtime
+					data.remark = this.remark
+					data.userid = this.userList.map(item=>item.id).join(",")
+					data.peoples = Number(this.peoples) 
+					if(this.endtime == '' || this.starttime == ''){
+						uni.showToast({
+							title:"请选择起止时间！",
+							icon:"none"
+						})
+						return
+					}
+					if(!this.peoples){
+						uni.showToast({
+							title:"请选择邀约人数！",
+							icon:"none"
+						})
+						return
+					}
+					let stime = (new Date(this.starttime)).getTime()
+					let etime = (new Date(this.endtime)).getTime()
+					if(stime > etime){
+						uni.showToast({
+							title:"开始时间不能大于截止时间！",
+							icon:"none"
+						})
+						return
+					}
+					uni.showLoading({
+						title:"发布中..."
+					})
+					this.publishInvite(data)
+				} else {
+					if(!this.phtotImgs.length && this.content == ''){
+						uni.showToast({
+							title:"请输入内容或者上传图片",
+							icon:"none"
+						})
+						return 
+					}
+					data.content = this.content
+					data.file = this.phtotFiles.map((value, index) => {
+						return {
+							name: 'images' + index,
+							uri: value
+						};
+					});
+					this.publishFeed(data)
+					
+				}
+			},
+			publishRecom(){
+				let users = this.userList.map(item=>{
+					return {
+						privacyimage:item.res.path,
+						userid: item.id + ''
+					}
+				})
+				let privacytype = this.typeArray[this.typeIndex].id
+				let privacytag = []
+				let privacyuser = []
+				if(privacytype == 2){
+					if(!this.tagVal.length){
+						uni.showToast({
+							title:"请选择标签",
+							icon:"none"
+						})
+						return
+					}
+					privacytag = this.tagVal
+				} else if(privacytype == 4){
+					if(!this.authority_users.length){
+						uni.showToast({
+							title:"请选择用户",
+							icon:"none"
+						})
+						return
+					}
+					privacyuser = this.authority_users.map(item=>item.id)
+				}
+				uni.showLoading({
+					title:"发布中..."
+				})
+				batch_recommend({
+					releaseuserid:this.userInfo.id, 
+					privacytype,
+					privacytag,
+					privacyuser,
+					users
+					
+				}).then(res=>{
+					uni.hideLoading()
+					if(res.code == 0){
+						uni.showToast({
+							title:'发布成功！',
+						})
+						this.resetData()
+					} else {
+						uni.showToast({
+							title: res.msg,
+							icon: "none"
+						})
+					}
+				}).catch(err=>{
+					uni.hideLoading()
+					console.log(err)
+				})
+				
+			},
+			publishInvite(data){
+				publish_invite(data).then(res=>{
+					uni.hideLoading()
+					if(res.code == 0){
+						uni.showToast({
+							title:'发布成功！',
+						})
+						this.resetData()
+					} else{
+						uni.showToast({
+							title:res.msg,
+							icon:"none"
+						})
+					}
+				}).catch(err=>{
+					uni.hideLoading()
+					console.error(err)
+				})
+			},
+			publishFeed(data){
+				uni.showLoading({
+					title:"发布中..."
+				})
+				let token = uni.getStorageSync('token')
+				this.uploadTask = uni.uploadFile({
+					url: `${baseUrl}/channel/createfeedback`,
+					header:{
+						token
+					},
+					formData: {
+						'releaseuserid': data.releaseuserid,
+						'content':data.content
+					},
+					files:data.file,
+					success: (res) => {
+						uni.hideLoading()
+						let result = JSON.parse(res.data) 
+						if(result.code == 0){
+							uni.showToast({
+								title:'发布成功！',
+							})
+							this.resetFeedData()
+						} else{
+							uni.showToast({
+								title:result.msg,
+								icon:"none"
+							})
+						}
+					},
+					fail(err) {
+						uni.hideLoading()
+						console.error(err)
+					}
+				});
+			},
+			deleUser(index){
+				this.userList.splice(index, 1)
+			},
+			uploadFile(){
+				uni.chooseImage({
+					count:this.maxLen - this.phtotImgs.length,
+				    success: (res) => {
+						this.phtotImgs.push(...res.tempFilePaths)
+						this.phtotFiles.push(...res.tempFilePaths)
+				    }
+				});
+			},
+			deletePhoto(index){
+				this.phtotFiles.splice(index, 1)
+				this.phtotImgs.splice(index, 1)
+			},
+			resetData(){
+				this.authority_users = []
+				this.userList = [],
+				this.startDate2=getNowDate(),
+				this.startDate=getNowDate(),
+				this.endDate=getDate('end'),
+				this.starttime="",
+				this.endtime="",
+				this.remark=""
+				this.setCropUser({})
+				this.authority = 0
+				this.tagVal = []
+				this.typeIndex = 0
+				this.peoples = 1
+			},
+			resetFeedData(){
+				this.phtotFiles = []
+				this.phtotImgs = []
+				this.content = ''
+			},
+			ctrateUser(){
+				uni.navigateTo({
+					url:`/pages/service/createUser`
+				})
+			}
+		}
+	}
+</script>
+<style scoped>
+	.content {
+		display: flex;
+		flex-direction: column;
+	}
+
+	.tab-group {
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+		border-bottom-width: 2rpx;
+		border-bottom-color: #DDDDDD;
+		height: 110rpx;
+		margin-left: 30rpx;
+		margin-right: 30rpx;
+	}
+
+	.tab-text {
+		font-size: 32rpx;
+		color: #333333;
+	}
+
+	.tab-type {
+		color: #999999;
+	}
+	.user-groupuser-group{
+		padding-top: 60rpx;
+		display: flex;
+		flex-direction: column;
+		margin-bottom: 60rpx;
+	}
+	.push-groupuser-group{
+		padding-top: 30rpx;
+		display: flex;
+		flex-direction: column;
+		margin-bottom: 60rpx;
+	}
+	.user-item{
+		display: flex;
+		flex-direction: row;
+		margin-top: 10rpx;
+		align-items: flex-start;
+		justify-content: flex-start;
+		flex-wrap: wrap;
+	}
+	.user{
+		width: 150rpx;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-direction: column;
+		margin-left: 30rpx;
+		margin-top: 20rpx;
+	}
+	.user-avatar{
+		width: 150rpx;
+		height: 150rpx;
+		border-radius: 50%;
+		display: flex;
+	}
+	.nickname{
+		font-size: 26rpx;
+		color: #333333;
+		width: 150rpx;
+		text-align: center;
+		padding-top: 10rpx;
+		overflow: hidden;
+		text-overflow:ellipsis;  
+		/* #ifndef APP-PLUS */
+		white-space: nowrap;
+		/* #endif */
+		/* #ifdef APP-PLUS */
+		lines:1;
+		/* #endif */
+	}
+	.icon-btn{
+		width: 150rpx;
+		height: 150rpx;
+		border-radius: 50%;
+		border-top-color: #333333;
+		border-right-color: #333333;
+		border-bottom-color: #333333;
+		border-left-color: #333333;
+		border-left-width: 2rpx;
+		border-right-width: 2rpx;
+		border-bottom-width: 2rpx;
+		border-top-width: 2rpx;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		margin-left: 30rpx;
+		margin-top: 20rpx;
+	}
+	.user-title{
+		line-height: 30rpx;
+		font-size: 28rpx;
+		color: #999999;
+		padding-left: 30rpx;
+		padding-right: 30rpx;
+	}
+	.picker-label{
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		justify-content: flex-end;
+	}
+	.arrowright{
+		/* #ifdef APP-PLUS */
+		transform: translateY(-2rpx);
+		/* #endif */
+	}
+	.group-cell{
+		padding-left: 30rpx;
+		padding-right: 30rpx;
+	}
+	.form-item{
+		display: flex;
+		flex-direction: row;
+		justify-content: space-between;
+		align-items: center;
+	}
+	.form-item-group-date{
+		border-bottom-width: 2rpx;
+		border-bottom-color: #DDDDDD;
+		border-top-width: 2rpx;
+		border-top-color: #DDDDDD;
+		height: 110rpx;
+	}
+	.text-30-col-9{
+		font-size: 30rpx;
+		color: #999999;
+	}
+	.form-item-date {
+		display: flex;
+		flex-direction: row;
+		justify-content: flex-end;
+		align-items: center;
+	}
+	.uni-textarea{
+		height: 300rpx;
+		background-color: #F6F6F6;
+		border-radius: 10rpx;
+		width: 690rpx;
+		font-size: 28rpx;
+		color: #999999;
+		box-sizing: border-box;
+		padding: 15rpx;
+		font-size: 30rpx;
+	}
+	.form-item-textarea{
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+	}
+	.tab-text-textarea{
+		height: 110rpx;
+		line-height: 110rpx;
+	}
+	.footer-btn-group{
+		padding-left: 30rpx;
+		padding-right: 30rpx;
+		padding-top: 100rpx;
+		padding-bottom: 50rpx;
+	}
+	.warning-btn{
+		background-color: #edd0b2;
+		height: 40px;
+		line-height: 40px;
+		border-radius: 50rpx;
+		flex: 1;
+		/* #ifndef APP-PLUS */
+		width: 100%;
+		/* #endif */
+		border-color: rgba(0,0,0,0);
+		border: 0 !important;
+	}
+	.warning-btn:after {
+	    border: 0 !important;
+	}
+	.warning-btn-text{
+		color: #606266;
+		line-height: 44rpx;
+	}
+	.feed-group{
+		padding-top: 50rpx;
+		display: flex;
+	}
+	.m30{
+		margin-left: 30rpx;
+		margin-right: 30rpx;
+	}
+	.photot-group{
+		display: flex;
+		flex-direction: row;
+		flex-wrap: wrap;
+	}
+	.photot-item{
+		width: 170rpx;
+		height: 170rpx;
+		margin-left: 30rpx;
+		margin-top: 20rpx;
+		display: flex;
+		flex-direction: column;
+		justify-content: flex-end;
+		align-items: flex-start;
+	}
+	.phoho{
+		width: 150rpx;
+		height: 150rpx;
+	}
+	.photo-icon-btn{
+		width: 150rpx;
+		height: 150rpx;
+		background-color: #F6F6F6;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		margin-left: 30rpx;
+		margin-top: 40rpx;
+	}
+	.photot-left{
+		margin-left: 10rpx;
+	}
+	.push-group-title{
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+		padding-left: 30rpx;
+		padding-right: 30rpx;
+	}
+	.push-add-btn{
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+	}
+	.push-add-btn-text{
+		font-size: 14px;
+		color: #12c6ab;
+	}
+	.size-14{
+		font-size: 14px;
+	}
+	.color-153{
+		color: rgb(153,153,153);
+	}
+	.push-user-item{
+		display: flex;
+		flex-direction: row;
+		flex-wrap: wrap;
+		align-items: center;
+	}
+	.push-user{
+		width: 375rpx;
+		height: 600rpx;
+		display: flex;
+		flex-direction: column;
+	}
+	.push-user-group{
+		display: flex;
+		flex-direction: column;
+		padding-top: 40rpx;
+	}
+	.push-user-avatar{
+		width: 330rpx;
+		height: 470rpx;
+	}
+	.push-user-info{
+		display: flex;
+		flex-direction: row;
+		padding-top: 20rpx;
+		height: 80rpx;
+	}
+	.push-user-avatr{
+		width: 60rpx;
+		height: 60rpx;
+		border-radius: 50%;
+	}
+	.push-user-name{
+		font-size: 26rpx;
+		color: #333333;
+	}
+	.push-user-age{
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+	}
+	.push-user-age-text{
+		font-size: 26rpx;
+		color: rgba(242, 70, 171, 1);
+	}
+	.push-user-wrap{
+		margin-left: 10rpx;
+	}
+	.bg-246{
+		width: 330rpx;
+		height: 470rpx;
+		margin-top: 40rpx;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background-color: rgb(246,246,246);
+	}	
+	.select_tag{
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+		padding-top: 15rpx;
+		padding-left: 30rpx;
+		padding-right: 30rpx;
+		height: 50px;
+	}
+	.tagwrap{
+		display: flex;
+		flex-direction: row;
+		justify-content: flex-end;
+		flex: 1;
+		padding-top: 15rpx;
+		padding-left: 30rpx;
+		padding-right: 30rpx;
+	}
+	.tag-active{
+		color: #12c6ab;
+	}
+	.uni-input{
+		width: 500rpx;
+		text-align: right;
+	}
+</style>

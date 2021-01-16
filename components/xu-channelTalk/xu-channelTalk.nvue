@@ -1,0 +1,163 @@
+<template>
+	<list class="listbox" :scroll-top="scrollTop" @scroll="scrollWatch" :show-scrollbar='false' >
+		<cell >
+			<view id="container">
+				<view v-for="(item,idx) in getManyTalkRander" :key="index" class="cells" :id="'item'+uid">
+					<view class="lefts" @click="checkUserMsg(item)">
+						<text class="nickname" style="display: block;"  :class="{man:item.sex}">{{item.nickname}}:</text>
+					</view>
+					<view class="rights">
+						<text class="speakContent" style="max-width:300rpx">{{item.content}}</text>
+					</view>
+				</view> 
+				<view class="promptBlock" v-if="!canGoBottom && num>0" @click="gotoBottomAndChangeState">
+					<text class="notRead">有{{num}}条新消息</text>
+				</view>
+			</view>
+
+		</cell>
+	</list>
+</template>
+
+<script>
+	export default {
+		props:{
+			rpxExchangePx:Number
+		},
+		data(){
+			return{
+				scrollTop:0,
+				canGoBottom:true,
+				bottomY:0,//计算最底部的值
+				num:0,
+				IsSelfMove:false,
+				xuExchanges:0,
+				heightPx:0
+			}
+		},
+
+		computed:{
+			getManyTalkRander(){
+				this.heightPx =this.$store.state.rpxExchangePxs * 300
+				if(this.canGoBottom){
+					this.gotoBottom()
+				}else{
+					this.num++
+				}
+				
+				return this.$store.state.manyTalkRenderArr
+			}
+		},
+		methods:{
+			gotoBottom(){
+				
+				this.$nextTick(()=>{
+					console.log(123)
+					console.log(this.heightPx)
+					console.log('我去去去去去',this.$store.state.rpxExchangePxs)
+					const query = uni.createSelectorQuery().in(this).select('#container'); // 这里要加上select
+					query.boundingClientRect(data => {
+						if(Math.floor( data.height)>this.heightPx){
+							console.log('开始整了')
+							 this.scrollTop = Math.floor( data.height)
+						}
+					}).exec();
+				})
+			},
+			checkUserMsg(item){
+				let {uid} = item
+				console.log(item)
+				this.$emit('checkUser',uid)
+			},
+			scrollWatch(event){
+				 console.log(event)
+				 //计算最低部的值
+				 let  {contentSize,contentOffset} = event;
+				 console.log('最底部的值', (300 * this.rpxExchangePx)-contentSize.height)
+				this.bottomY = (300 * this.rpxExchangePx)-contentSize.height;
+				if(this.bottomY<=contentOffset.y-20){
+					console.log('用户下上划了20')
+					if(this.canGoBottom){
+						this.num--
+					}
+					this.canGoBottom = false;
+					console.log(this.canGoBottom)
+				}else{
+					console.log('用户回到了底部')
+					this.canGoBottom = true;
+					this.num =0;
+					console.log(this.canGoBottom)
+				}
+			},
+			gotoBottomAndChangeState(){
+				this.gotoBottom();
+				this.num=0;
+				this.canGoBottom = true
+			}
+			
+			
+		}
+	}
+</script>
+
+<style scoped>
+	.listbox{
+		width: 500rpx;
+		height: 300rpx;
+		position: fixed;
+		top: 900rpx;
+		padding-left: 30rpx;
+	}
+	.cells{
+		
+		padding: 10rpx;
+		flex-direction: row;
+		margin-bottom: 10rpx;
+		border-radius: 30rpx;
+	}
+	.nickname{
+	
+		color: #F72585;
+		font-size: 28rpx;
+	
+	}
+	.man{
+		color: #4895EF;
+		font-size: 28rpx;
+	}
+	.speakContent{
+	
+		color: #FFFFFF;
+		font-size: 28rpx;
+	
+
+	}
+	.lefts{
+		padding: 10rpx;
+		border-top-left-radius: 30rpx;
+		border-bottom-left-radius: 30rpx;
+		background-color: rgba(255,255,255,0.3);
+	}
+	.rights{
+		background-color: rgba(255,255,255,0.3);
+		border-top-right-radius: 30rpx;
+		border-bottom-right-radius: 30rpx;
+		padding: 10rpx;
+	}
+	.promptBlock{
+		width: 200rpx;
+		height: 50rpx;
+		border-radius: 200rpx;
+		position: fixed;
+		background-color:rgba(0,0,0,0.4);
+		left: 30rpx;
+		top:1150rpx;
+		flex-direction: row;
+		justify-content: center;
+		align-items: center;
+	}
+	.notRead{
+		color: #FFFFFF;
+		font-size: 24rpx;
+	}
+</style>

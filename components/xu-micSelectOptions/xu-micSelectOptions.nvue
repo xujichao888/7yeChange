@@ -1,0 +1,82 @@
+<template>
+	<view class="select-options" :class="{twoOptions:!masterNotCloce}">
+		<view class="options">
+			<text v-if="masterNotCloce" class="close-voice" @click="muteVoice">{{muteVoiceText}}</text>
+			<text class="down-mic" @click="downMic">下麦</text>
+		</view>
+		<text class="cancel" @click="cancelPop">取消</text>
+	</view>
+</template>
+
+<script>
+	export default {
+		props:{
+			micIsOff:{
+				type:Boolean,
+				default:true
+			},
+			masterNotCloce:{
+				type:Boolean,
+				default:true
+			}
+		},
+		computed:{
+			muteVoiceText(){
+				return this.micIsOff?"关闭麦克风":"开启麦克风"
+			}
+		},
+		methods:{
+			cancelPop(){
+				this.$emit('cancel')
+			},
+			downMic(){
+				this.$emit('downMic')
+			},
+			muteVoice(){
+				this.$emit('muteVoice')
+			}
+		}
+	}
+</script>
+
+<style scoped>
+	.select-options{
+		width: 750rpx;
+		height: 320rpx;
+	}
+	.twoOptions{
+		height: 220rpx;
+	}
+	.options{
+		width: 750rpx;
+		border-radius: 38rpx;
+		background-color: #05192B;
+	}
+	.close-voice{
+		width: 750rpx;
+		height: 100rpx;
+		text-align: center;
+		line-height: 100rpx;
+		color: #FFFFFF;
+		border-bottom-width: 3rpx;
+		border-bottom-style: solid;
+		border-bottom-color: #062525;
+	}
+	.down-mic{
+		width: 750rpx;
+		height: 100rpx;
+		text-align: center;
+		line-height: 100rpx;
+		color: #FFFFFF;
+	}
+	.cancel{
+		width: 750rpx;
+		height: 100rpx;
+		border-radius: 38rpx;
+		background-color: #05192B;
+		text-align: center;
+		line-height: 100rpx;
+		color: #FFFFFF;
+		margin-top: 19rpx;
+	}
+</style>

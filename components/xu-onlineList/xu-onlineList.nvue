@@ -1,0 +1,129 @@
+<template>
+	<view class="online-box">
+		<list :loadmoreoffset="30" :offset-accuracy='10' @loadmore="loadmore" >
+			<cell class="cells" v-for="(item,index) in onlineArr" :key="index+'1'" @click="handleClick(item)">
+				<view class="left">
+					<text class="idx">{{index+1}}</text>
+					<image class="avatar" :src="item.avatar" mode="aspectFill"></image>
+					<text class="nickname">{{item.nickname}}</text>
+				</view>
+				<view class="right">
+					<xu-buleHeartOrPinkHeart :sex="item.sex" />
+					<text class="idx">{{item.income?item.income:0}}</text>
+				</view>
+			</cell>
+			<cell class="load-more-box">
+				<text class="load-more-text">{{loadMoreText}}</text>
+			</cell>
+		</list>
+	</view>
+</template>
+
+<script>
+	export default {
+		data(){
+			return{
+			
+			}
+		},
+		props:{
+			onlineArr:{
+				type:Array,
+				default:[]
+			},
+			onlineOffset:Number,
+			onlineType:{
+				type:String,
+				default:"online"
+			}
+		},
+		computed:{
+			loadMoreText(){
+				return this.onlineOffset==0?'没有更多了...':'加载更多'
+			}
+		},
+		methods:{
+			loadmore(){
+				if(this.onlineOffset == 0){
+					return false
+				}
+				this.$emit('loadMoreOnline')
+			},
+			handleClick(item){//控制点击
+				console.log(item)
+				let {id} = item
+				if(this.onlineType=='online'){
+					this.$emit('popupCheckUser',id)
+				}else{
+					this.$emit('upOtherMic',id)
+				}
+			}
+		}
+		
+	}
+</script>
+
+<style scoped>
+	.online-box{
+		width: 750rpx;
+		height: 500rpx;
+		background-color: #021526;
+	}
+	.texts{
+		color: #FFFFFF;
+	}
+	.cells{
+		width: 750rpx;
+		height: 150rpx;
+		padding: 0 30rpx;
+		flex-direction: row;
+		justify-content: space-between;
+		border-bottom-width: 3rpx;
+		border-bottom-color: #082036;
+	}
+	.left{
+		width: 350rpx;
+		height: 150rpx;
+		flex-direction: row;
+		align-items: center;
+	}
+	.right{
+		width: 350rpx;
+		height: 150rpx;
+		flex-direction: row;
+		justify-content: flex-end;
+		align-items: center;
+	}
+	.idx{
+		color: #FFFFFF;
+	}
+	.avatar{
+		width: 100rpx;
+		height: 100rpx;
+		border-top-left-radius:108rpx;
+		border-top-right-radius:108rpx;
+		border-bottom-left-radius: 108rpx;
+		border-bottom-right-radius: 108rpx;
+		margin-left: 15rpx;
+		margin-right: 15rpx;
+	}
+	.nickname{
+		color: #FFFFFF;
+	}
+	.sex-icon{
+		width: 30rpx;
+		height: 30rpx;
+		margin-right: 10rpx;
+	}
+	.load-more-box{
+		width: 750rpx;
+		height: 100rpx;
+		justify-content: center;
+		align-items: center;
+	}
+	.load-more-text{
+		line-height: 100rpx;
+		color: #999999;
+		font-size: 24rpx;
+	}
+</style>

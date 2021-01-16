@@ -1,0 +1,1542 @@
+<template>
+	<view class="tabs">
+		<view>
+			<view class="status_bar">
+				<!-- 这里是状态栏 -->
+			</view>
+			<view>&nbsp;</view>
+		</view>
+		<view class="tab-group" :style="{'padding-top':(12+pdt)+'px'}">
+			<scroll-view id="tab-bar" class="scroll-h" :scroll-x="true" :show-scrollbar="false" :scroll-into-view="scrollInto">
+				<view v-for="(tab,index) in tabBars" :key="tab.id" class="uni-tab-item" :id="tab.id" :data-current="index" @click="ontabtap">
+					<div class="uni-tab-group">
+						<text class="uni-tab-item-title" :class="tabIndex==index ? 'uni-tab-item-title-active' : ''">{{tab.name}}</text>
+						<image v-if="tabIndex==index" class="border-img" src="/static/icons/index/tab_select.png"></image>
+					</div>
+				</view>
+			</scroll-view>
+			<image v-if="tabIndex == 0" @click="filterHandle" class="icon-btn" src="/static/icons/index/filter.png"></image>
+			<view v-else-if="tabIndex == 1" @click="inviteHandle" class="nvitation-icon-group" style="position: relative;">
+				<image class="icon-btn" src="/static/icons/index/mess.png"></image>
+				<view class="invitation-badge" v-if="shoWinvitationBagdge" style="position: absolute; right:0px; top:0px"></view>
+			</view>
+		</view>
+		<swiper :current="tabIndex" class="swiper-box" style="flex: 1;" :duration="300" @change="ontabchange">
+			<swiper-item class="swiper-item" v-for="(tab,index1) in newsList" :key="index1">
+				<!-- #ifdef APP-NVUE -->
+				<list class="scroll-v list" enableBackToTop="true" scroll-y loadmoreoffset="15" @loadmore="loadMore(index1)">
+					<refresh class="refresh" @refresh="onrefresh(index1)" @pullingdown="onpullingdown" :display="tab.refreshing ? 'show' : 'hide'">
+						<div class="refresh-view">
+							<image class="refresh-icon" :src="refreshIcon" :style="{width: (tab.refreshing || pulling) ? 0: '30px'}" :class="{'refresh-icon-active': tab.refreshFlag}"></image>
+							<loading-indicator class="loading-icon" animating="true" v-if="tab.refreshing"></loading-indicator>
+							<text class="loading-text">{{tab.refreshText}}</text>
+						</div>
+					</refresh>
+					<cell>
+						<view class="date-group" v-if="tabIndex == 0 && date">
+							<text class="date">{{date}}</text>
+							<view class="date-line"></view>
+						</view>
+					</cell>
+					<cell v-for="(newsitem,index2) in tab.data" :key="index1 + '_' + index2">
+						<recom-item v-if="index1 === 0" :options="newsitem" @close="close(index1,index2)" @longpress.native.prevent="deleRecom(newsitem, index2, index1)"
+						 @click="goDetail(newsitem)"></recom-item>
+						<invite-item v-else-if="index1 === 1" :options="newsitem" @close="close(index1,index2)" @click="goDetail(newsitem)">
+							<view class="sign-btn-group" slot="right_btn">
+								<view class="sign-btn" :class="{btnDfaultBg: newsitem.isignup}">
+									<text class="sign-btn-text" v-if="newsitem.info" @click="pass(newsitem)">{{newsitem.signupinvitestatus == 1 ? "已通过" : "通过"}}</text>
+									<text class="sign-btn-text" v-else @click="signup(newsitem)">{{newsitem.isignup ? '已报名' :'报名'}}</text>
+								</view>
+								<text v-if="newsitem.peoples && newsitem.peoples > 1" class="num-text">{{newsitem.agree }}/{{newsitem.peoples}}</text>
+							</view>
+						</invite-item>
+						<feed-item v-else @admireCheck="admireCheck" @toInfo="toFeedInfo" :options="newsitem" :islast="index2 == tab.data.length - 1"
+						 :index="index2" @close="close(index1,index2)" @click="goDetail(newsitem)"></feed-item>
+					</cell>
+					<cell class="loading-more" v-if="tab.empty">
+						<!-- <text class="loading-more-text">暂无数据</text> -->
+						<image class="7ye-empty-content" src="/static/img/empty.png"></image>
+					</cell>
+					<cell class="loading-more" v-else-if="tab.noMore && tab.data.length > 4">
+						<text class="loading-more-text">没有更多了~</text>
+					</cell>
+					<cell class="loading-more" v-else-if="tab.data.length > 4">
+						<text class="loading-more-text">{{tab.loadingText}}</text>
+					</cell>
+				</list>
+				<!-- #endif -->
+				<!-- #ifndef APP-NVUE -->
+				<scroll-view class="scroll-v list" enableBackToTop="true" scroll-y @scrolltolower="loadMore(index1)">
+					<view class="date-group" v-if="tabIndex == 0 && date">
+						<text class="date">{{date}}</text>
+						<view class="date-line"></view>
+					</view>
+					<view v-for="(newsitem,index2) in tab.data" :key="index1 + '_' + index2">
+						<recom-item v-if="index1 === 0" :options="newsitem" @close="close(index1,index2)" @click="goDetail(newsitem)"></recom-item>
+						<invite-item v-else-if="index1 === 1" :options="newsitem" @close="close(index1,index2)" @click="goDetail(newsitem)">
+							<view class="sign-btn-group" slot="right_btn">
+								<view class="sign-btn" :class="{btnDfaultBg: newsitem.isignup}">
+									<text class="sign-btn-text" v-if="newsitem.info" @click="pass(newsitem)">{{newsitem.signupinvitestatus == 1 ? "已通过" : "通过"}}</text>
+									<text class="sign-btn-text" v-else @click="signup(newsitem)">{{newsitem.isignup ? '已报名' :'报名'}}</text>
+								</view>
+								<text class="num-text">{{newsitem.agree }}/{{newsitem.peoples}}</text>
+							</view>
+						</invite-item>
+						<feed-item v-else @admireCheck="admireCheck" :options="newsitem" @toInfo="toFeedInfo" :islast="index2 == tab.data.length - 1"
+						 :index="index2" @close="close(index1,index2)" @click="goDetail(newsitem)"></feed-item>
+					</view>
+					<view class="loading-more" v-if="tab.empty">
+						<text class="loading-more-text">暂无数据~</text>
+					</view>
+					<view class="loading-more" v-else-if="tab.noMore && tab.data.length > 4">
+						<text class="loading-more-text">没有更多了~</text>
+					</view>
+					<view class="loading-more" v-else-if="tab.data.length > 4">
+						<text class="loading-more-text">{{tab.loadingText}}</text>
+					</view>
+				</scroll-view>
+				<!-- #endif -->
+			</swiper-item>
+		</swiper>
+		<uni-popup ref="popupmes" type="message">
+			<uni-popup-message type="error" message="网络连接断开" :duration="0"></uni-popup-message>
+		</uni-popup>
+		<upload-progress :show="progressShow" :percent='percent' @uploadEnd="uploadEnd" progress title="更新中..."></upload-progress>
+	</view>
+</template>
+<script>
+	import {
+		mapGetters,
+		mapMutations
+	} from 'vuex'
+	import uploadProgress from '@/components/upload-progress/progress.vue'
+	import recomItem from './components/recomItem.nvue';
+	import inviteItem from './components/inviteItem.nvue';
+	import feedItem from './components/feedItem.nvue';
+	import {
+		get_recom_list,
+		get_invite_list,
+		get_feed_list,
+		get_invite_info,
+		sign_up,
+		get_user_info,
+		get_rtmtoken,
+		push_message,
+		set_cid,
+		del_comment,
+		get_service_info,
+		del_recomm,
+		update_version,
+		change_feecomment_status
+	} from "@/common/http.nvue.api.js"
+	import {
+		formatDate,
+		getConstellation,
+		paramJson,
+		timeDis
+	} from '@/utils/param.js'
+
+	// 缓存每页最多
+	const MAX_CACHE_DATA = 100;
+	// 缓存页签数量
+	const MAX_CACHE_PAGE = 3;
+
+	export default {
+		components: {
+			recomItem,
+			inviteItem,
+			feedItem,
+			uploadProgress
+		},
+		data() {
+			return {
+				progressShow:false,
+				percent:0,
+				pdt: 0,
+				shoWinvitationBagdge: false,
+				date: null,
+				param: {
+					endregtime: "",
+					beginregtime: "",
+					beginage: 0,
+					endage: 0,
+					beginheight: 0,
+					endheight: 0,
+					beginweight: 0,
+					endweight: 0,
+					emotion: "",
+					hoobyid: "",
+					city: ""
+				},
+				newsList: [],
+				cacheTab: [],
+				tabIndex: 0,
+				tabBars: [{
+					name: '推荐',
+					id: 'tuijian'
+				}, {
+					name: '邀约',
+					id: 'yaoyue'
+				}, {
+					name: '反馈',
+					id: 'fankui'
+				}],
+				scrollInto: "",
+				showTips: false,
+				navigateFlag: false,
+				pulling: false,
+				refreshIcon: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAMAAABg3Am1AAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAB5QTFRFcHBw3Nzct7e39vb2ycnJioqK7e3tpqam29vb////D8oK7wAAAAp0Uk5T////////////ALLMLM8AAABxSURBVHja7JVBDoAgDASrjqj//7CJBi90iyYeOHTPMwmFZrHjYyyFYYUy1bwUZqtJIYVxhf1a6u0R7iUvWsCcrEtwJHp8MwMdvh2amHduiZD3rpWId9+BgPd7Cc2LIkPyqvlQvKxKBJ//Qwq/CacAAwDUv0a0YuKhzgAAAABJRU5ErkJggg=="
+			}
+		},
+		computed: {
+			...mapGetters([
+				'userInfo',
+				'message_list',
+				'currentUser',
+				'txImisLogin',
+				'txIm',
+				'targrtUser',
+				'agora_token',
+				'networkState',
+				'invitationBadgeCount',
+				'exitState'
+			])
+		},
+		watch: {
+			networkState: {
+				handler(val) {
+					let _this = this
+
+					function changeState(state) {
+						if (!_this.$refs.popupmes) {
+							setTimeout(() => {
+								changeState()
+							}, 500)
+							return
+						}
+						if (val) _this.$refs.popupmes.close()
+						else _this.$refs.popupmes.open()
+					}
+					changeState(val)
+				},
+				immediate: true
+			},
+			invitationBadgeCount: {
+				handler(val) {
+					if (val > 0) this.shoWinvitationBagdge = true
+					else this.shoWinvitationBagdge = false
+				},
+				immediate: true
+			}
+		},
+		onShow() {
+			if (this.userInfo && this.userInfo.type == 0) {
+				uni.showTabBar()
+			}
+			let that = this
+			uni.getSystemInfo({
+				success: (res) => {
+					if (res.safeAreaInsets.top >= 44) {
+						that.pdt = 12;
+					}
+				}
+			});
+		},
+		onReady() {
+			uni.getSystemInfo({
+				success: (res) => {
+					getApp().globalData.system_info = res
+					uni.setStorageSync('vuex_system_info', res)
+				}
+			});
+		},
+		onLoad() {
+			let token = uni.getStorageSync("token")
+			if (!token) {
+				uni.reLaunch({
+					url: `/pages/login/login`
+				});
+				return
+			}
+
+			this.updateVersion()
+			
+			uni.$on('roomSendMessagem', this.roomSendMessagem)
+			uni.$on('removeSignList', this.removeSignList)
+			uni.$on('inviteInfo', this.toUsetInfo)
+			uni.$on('feedCommentOn', this.feedCommentHandel)
+			uni.$on('updateComment', this.updateCommentHandel)
+			uni.$on('updatePageIndex', this.updatePage)
+			uni.$on('delComment', this.delComment)
+			uni.$on("addSignCount", this.addSignCount)
+			uni.$on("setGlobalFeed", this.setGlobalFeed)
+			uni.$on("shield", this.shieldFeed)
+			
+			this.resetState()
+		},
+		onHide() {
+			this.setPrevPage("/pages/index/index")
+		},
+		onUnload() {
+			uni.$off('roomSendMessagem', this.roomSendMessagem)
+			uni.$off('inviteInfo', this.toUsetInfo)
+			uni.$off('feedCommentOn', this.feedCommentHandel)
+			uni.$off('updateComment', this.updateCommentHandel)
+			uni.$off('updatePageIndex', this.updatePage)
+			uni.$off('delComment', this.delComment)
+			uni.$off('removeSignList', this.removeSignList)
+			uni.$off("addSignCount", this.addSignCount)
+			uni.$off("setGlobalFeed", this.setGlobalFeed)
+			uni.$off("shield", this.shieldFeed)
+		},
+		methods: {
+			...mapMutations([
+				'setUsers',
+				'setAgoraToken',
+				'setServiceInfo',
+				'addMessage',
+				'setTargrtUser',
+				'setPrevPage',
+				'createService',
+				'setInvitationBadge',
+				'setExitState',
+				'setChatViewTabbar',
+				'pushSendMessage'
+			]),
+			roomSendMessagem(persion){
+				if (this.userInfo.type == 0) {
+					this.setServiceInfo()
+					this.sendData = {
+						userid: this.userInfo.id,
+						userInfo: {
+							userid: this.userInfo.id,
+							nickname: this.userInfo.nickname,
+							avatar: this.userInfo.avatarimg
+						},
+						message: {
+							isSelf: true,
+							type: 2,
+							date: new Date().getTime(),
+							info: {
+								userid: persion.userid,
+								avatarimg: persion.avatarimg,
+								sex: persion.sex,
+								nickname: persion.nickname,
+								addr: persion.citystr,
+								age: persion.age,
+								constellation: persion.constellation,
+								height: persion.height || '',
+								weight: persion.weight || '',
+								sanwei: "",
+								hobby: "",
+								freetime: "",
+								travellocation: "",
+								target: "",
+							},
+							id: new Date().getTime()
+						}
+					}
+					this.txIm.sendMessageText(JSON.stringify(this.sendData), this.currentUser.userInfo.userid + '', true, true, true)
+				
+					this.sendData.userid = this.currentUser.userInfo.userid
+					this.sendData.userInfo = {
+						userid: this.currentUser.userInfo.userid,
+						nickname: this.currentUser.userInfo.nickname,
+						avatar: this.currentUser.userInfo.avatar,
+						cid: this.currentUser.userInfo.cid
+					}
+					this.sendData.message.id = this.sendData.message.id + '' + this.userInfo.id
+					this.addMessage(this.sendData)
+					this.pushSendMessage({
+						userid: this.sendData.userid,
+						mid: this.sendData.message.id
+					})
+					uni.switchTab({
+						url: `/pages/chat-view/chat-view`
+					})
+					return
+				}
+			},
+			setGlobalFeed(item){
+				let tab = this.newsList[2].data
+				if(tab.length){
+					let current = tab.find(i=>i.id == item.id)
+					if(current){
+						getApp().globalData.feedInfo = current
+					} else {
+						getApp().globalData.feedInfo = item
+					}
+				} else {
+					getApp().globalData.feedInfo = item
+				}
+				uni.$emit('setfeedOptions', getApp().globalData.feedInfo)
+			},
+			updateVersion() {
+				let clienttype = uni.getSystemInfoSync().platform == 'ios' ? 1 : 2
+					let data = {
+						channelid: 200,
+						clienttype,
+						ip: "",
+						vid: plus.runtime.version
+					}
+				console.log(plus.runtime.version, '当前版本')	
+				update_version(data).then(res => {
+					let _this = this
+					if (res.vid !== plus.runtime.version) {
+						uni.showModal({
+							title: "发现新版本",
+							content: "点击下载更新",
+							cancelText:'暂不更新',
+							confirmText:'立即更新',
+							success: (result) => {
+								if (result.confirm == true) { //当用户确定更新，执行更新
+									if (clienttype == 1) {
+										let appleId= 1546418806
+										plus.runtime.launchApplication({
+											action: `itms-apps://itunes.apple.com/cn/app/id${appleId}?mt=8`
+										}, function(e) {
+											console.log('Open system default browser failed: ' + e.message);
+										});
+									} else {
+										_this.doUpData(res.path);
+									}
+								}
+							}
+						})
+					}
+				}).catch(err => {
+					console.log(err, "版本检查失败")
+				})
+			},
+			doUpData(url) {
+				let downloadTask = uni.downloadFile({ //执行下载
+					url,
+					success: downloadResult => { //下载成功
+						uni.showTabBar()
+						if (downloadResult.statusCode == 200) {
+							uni.showModal({
+								title: '',
+								content: '更新成功，确定现在重启吗？',
+								confirmText: '重启',
+								confirmColor: '#EE8F57',
+								success: function(res) {
+									if (res.confirm == true) {
+										plus.runtime.install( //安装
+											downloadResult.tempFilePath, {
+												force: true
+											},
+											function(res) {
+												utils.showToast('更新成功，重启中');
+												plus.runtime.restart();
+											}
+										);
+									}
+								}
+							});
+						}
+					},
+					fail:err=>{
+						uni.showTabBar()
+						console.log(err)
+					}
+				});
+				uni.hideTabBar()
+				this.progressShow = true
+				let percent = 0
+				downloadTask.onProgressUpdate((res) => {
+					if(this.percent != res.progress){
+						this.percent = percent =  res.progress
+						if(this.percent == 100){
+							this.uploadEnd()
+						}
+					}
+				});
+			},
+			uploadEnd(){
+				this.progressShow = false
+				uni.hideLoading()
+				setTimeout(()=>{
+					this.percent = 0
+				},300)
+			},
+			resetState() {
+				this.setTabBar()
+				this.tabBars.forEach((tabBar) => {
+					this.newsList.push({
+						data: [],
+						empty: false,
+						isLoading: false,
+						refreshText: "",
+						loadingText: '加载更多...',
+						noMore: false,
+						prevPage: 0,
+						page: 1,
+						rows: 10
+					});
+				});
+				this.init()
+				this.setCid()
+
+				//#ifdef APP-PLUS
+				let clientInfo = plus.push.getClientInfo()
+				this.$store.commit('setclientInfo', clientInfo)
+				this.$store.commit("initMesList")
+				//#endif
+			},
+			loginTXIM() { //登录
+				console.log('uid: ' + this.userInfo.id, 'token: ' + this.agora_token)
+
+				this.txIm.messageLogin({
+					'appid': '69847929eee34243b6c3f69b57f63887',
+					'token': this.agora_token,
+					'uid': this.userInfo.id + ''
+				}, result => {
+					let res = JSON.parse(result)
+					console.log(res, "Message")
+					if (res.method == "logout") {
+						console.log('退成声网登陆')
+					} else if (res.method == "login") {
+						if (res.msg == "sucess") {
+							console.log(res, "登陆声网成功")
+							this.$store.commit("setTXIMstate")
+						} else {
+							console.log("登陆声网失败")
+							// uni.showModal({
+							//     title: '提示',
+							//     content: '登陆失败',
+							// 	showCancel:false,
+							//     success: (res)=> {
+							//         if (res.confirm) {
+							//             uni.reLaunch({
+							//                 url: `/pages/login/login`
+							//             });
+							//         }
+							//     }
+							// });
+						}
+					} else {
+						if (res.method == "sendPeerMessage" || res.method == "sendMessageToPeer") {
+							if (res.method == "sendMessageToPeer" && this.isSendCrap && this.userInfo.type > 0) {
+								this.isSendCrap = false
+								return
+							}
+							console.log(result, "已发送等待状态")
+							uni.$emit("sendPeerMessage", res)
+
+						} else {
+							this.messageEvent(res)
+						}
+					}
+				})
+			},
+			async messageEvent(result) {
+				result.peerId = result.peerId || result.peerid
+				console.log(result, "收到消息", '对方id', result.peerId)
+				if (!this.targrtUser[result.peerId]) {
+					let trgetInfo = await this.getSenderUserInfo(Number(result.peerId))
+					this.setTargrtUser(trgetInfo)
+				}
+
+				let obj = {}
+				if (result.method == 'downloadImagemessageReceived') {
+					console.log(obj, '图片消息')
+					let imginfo = JSON.parse(result.message)
+					let isOfflineMessage = imginfo.isOfflineMessage || false
+
+					let _img = result.imagepath
+					let reg = /^(http|file)/
+					if (!reg.test(_img)) _img = `file://${_img}`
+					obj = {
+						userid: this.targrtUser[result.peerId].id,
+						userInfo: {
+							userid: this.targrtUser[result.peerId].id,
+							nickname: this.targrtUser[result.peerId].nickname,
+							avatar: this.targrtUser[result.peerId].avatarimg,
+						},
+						message: {
+							date: imginfo.serverReceivedTs || new Date().getTime(),
+							id: imginfo.serverReceivedTs || new Date().getTime(),
+							type: 1,
+							img: _img,
+							width: imginfo.width
+						}
+					}
+
+					if ((!this.currentUser.userInfo || this.currentUser.userInfo.userid != result.peerId) && isOfflineMessage) {
+						let title = this.targrtUser[result.peerId].nickname
+						let cid = this.userInfo.uinpush.cid
+						let pushType = this.userInfo.uinpush.phonemodel
+						this.pushMessage({
+							body: '图片',
+							title,
+							cid,
+							pushType,
+							obj
+						})
+					}
+					this.addMesHandle(obj, result)
+				} else if (result.method == 'messageReceived') {
+					obj = JSON.parse(result.msg)
+					let isOfflineMessage = obj.isOfflineMessage || false
+					let date = obj.serverReceivedTs || new Date().getTime()
+					obj = JSON.parse(obj.text)
+
+					if (obj.type && obj.type == -1) {
+						this.setInvitationBadge()
+						return
+					}
+
+					obj.date = date
+					obj.id = date
+					console.log(obj, '文本消息')
+					if ((!this.currentUser.userInfo || this.currentUser.userInfo.userid != result.peerId) && isOfflineMessage) {
+						let body = ""
+						let title = this.targrtUser[result.peerId].nickname
+						let cid = this.userInfo.uinpush.cid
+						let pushType = this.userInfo.uinpush.phonemodel
+						switch (obj.message.type) {
+							case 0:
+								body = obj.message.msg
+								break;
+							case 2:
+								body = "卡片"
+								break;
+							case 3:
+								body = "完善信息"
+								break;
+						}
+						this.pushMessage({
+							body,
+							title,
+							cid,
+							pushType,
+							obj
+						})
+					}
+
+					this.addMesHandle(obj, result)
+
+					if (this.targrtUser[result.peerId].type == 0 && this.userInfo.type > 0 && obj.message.type == 2 &&
+						this.targrtUser[result.peerId].status == 1 && this.targrtUser[result.peerId].level > 0) {
+						let toUserId = obj.message.info.userid
+						if (!this.targrtUser[toUserId]) {
+							let toUserInfo = await this.getSenderUserInfo(Number(toUserId))
+							this.setTargrtUser(toUserInfo)
+						}
+						if (this.targrtUser[toUserId].wechatcode) this.sendPerfectWechatcode(this.targrtUser[result.peerId], this.targrtUser[
+							toUserId].wechatcode)
+					}
+				}
+			},
+			addMesHandle(obj, res) {
+				obj.message.isSelf = false
+				if (this.currentUser.userInfo && this.currentUser.userInfo.userid == obj.userid) obj.message.isRead = true
+				else obj.message.isRead = false
+				obj.message.id = obj.message.id + '' + this.userInfo.id
+				this.addMessage(obj)
+			},
+			pushMessage({
+				body,
+				title,
+				cid,
+				pushType,
+				obj
+			}) {
+				push_message({
+					body,
+					title,
+					cid,
+					click_type: "none",
+					pushType,
+					url: ""
+				}).then(res => {
+					console.log(res, "推送成功")
+				}).catch(err => {
+					console.log(err, "推送失败")
+				})
+			},
+			sendPerfectWechatcode(target, wechatcode) {
+				uni.getImageInfo({
+					src: wechatcode,
+					success: (result) => {
+						uni.saveFile({
+							tempFilePath: result.path,
+							success: (res) => {
+								let savedFilePath = res.savedFilePath;
+								let obj = {
+									img: `file://${plus.io.convertLocalFileSystemURL(savedFilePath)}`,
+									width: result.width
+								}
+								this.txIm.sendImage(plus.io.convertLocalFileSystemURL(res.savedFilePath), target.id + '', true, true,
+									true)
+								this.isSendCrap = true
+								obj = {
+									userid: target.id,
+									userInfo: {
+										userid: target.id,
+										nickname: target.nickname,
+										avatar: target.avatarimg,
+									},
+									message: {
+										date: new Date().getTime(),
+										id: new Date().getTime() + '' + this.userInfo.id,
+										type: 1,
+										isSelf: true,
+										isRead: true,
+										img: obj.img,
+										width: obj.width,
+										isSelf: true,
+										sendErr: false
+									}
+								}
+								this.addMessage(obj)
+							}
+						});
+					}
+				})
+
+			},
+			setTabBar() {
+				let users = uni.getStorageSync("users")
+				if (users) {
+					if (users.type > 0) {
+						uni.setTabBarItem({
+							index: 2,
+							text: '客服',
+							iconPath: '/static/tabbar/service.png',
+							selectedIconPath: '/static/tabbar/service_select.png',
+							pagePath: '/pages/service/service'
+						})
+					} else {
+						//this.setServiceInfo()
+						uni.setTabBarItem({
+							index: 2,
+							text: '消息',
+							iconPath: '/static/tabbar/message.png',
+							selectedIconPath: '/static/tabbar/message_select.png',
+							pagePath: '/pages/chat-view/chat-view'
+						})
+						this.setChatViewTabbar(true)
+					}
+				}
+			},
+			getRtmtoken() {
+				get_rtmtoken({
+					userid: this.userInfo.id
+				}).then(res => {
+					uni.hideLoading()
+					if (res.code == 0) {
+						let agora_token = res.data || null
+						uni.setStorageSync('agora_token', agora_token)
+						this.setAgoraToken(agora_token)
+						//#ifdef APP-PLUS
+						if (!this.txImisLogin) this.loginTXIM()
+						//#endif
+					} else {
+						uni.showToast({
+							title: res.msg,
+							icon: "none"
+						})
+					}
+				}).catch(err => {
+					console.log(err)
+				})
+			},
+			init() {
+				if (this.newsList[0] && this.newsList[0].data) {
+					this.newsList[0].data = []
+				}
+				// if(this.newsList[1] && this.newsList[1].data){
+				// 	this.newsList[1].data = []
+				// }
+				this.newsList[0].prevPage = 0
+				this.newsList[0].page = 1
+				this.getRecomList()
+			},
+			setCid() {
+				//#ifdef APP-PLUS
+				let clientInfo = plus.push.getClientInfo()
+				this.$store.commit('setclientInfo', clientInfo)
+				let system_info = uni.getSystemInfoSync()
+				set_cid({
+					cid: clientInfo.clientid,
+					phonemodel: system_info.platform
+				}).then(res => {
+					if (res.code == 0) {
+						this.getUserInfo()
+					} else {
+						uni.showToast({
+							title: res.msg,
+							icon: "none"
+						})
+					}
+				}).catch(err => {
+					console.error(err)
+				})
+				//#endif
+			},
+			getUserInfo() {
+				let users = uni.getStorageSync("users")
+				get_user_info({
+					userid: users.id
+				}).then(res => {
+					uni.setStorageSync("users", res.data)
+					getApp().globalData.users = res.data
+					this.setUsers(res.data)
+					this.getRtmtoken()
+					if (this.userInfo.type == 0) this.getService()
+				}).catch(err => {
+					console.error(err)
+				})
+			},
+			getService() {
+				get_service_info().then(res => {
+					if (res.code == 0) {
+						this.createService(res)
+					} else {
+						uni.showToast({
+							title: res.msg,
+							icon: "none"
+						})
+					}
+				}).catch(err => {
+					console.log(err, '客服信息获取失败')
+				})
+			},
+			getSenderUserInfo(userid) {
+				return new Promise((resolve, reject) => {
+					get_user_info({
+						userid
+					}).then(res => {
+						if (res.code == 0) {
+							resolve(res.data)
+						} else {
+							reject(res.msg)
+						}
+					}).catch(err => {
+						reject(err)
+					})
+				})
+			},
+			getRecomList({
+				refresh = false
+			} = {}) {
+				let activeTab = this.newsList[0];
+				if (!refresh && activeTab.prevPage == activeTab.page) return
+				activeTab.prevPage = activeTab.page
+				activeTab.empty = false
+				get_recom_list({
+					...this.param,
+					page: activeTab.page,
+					rows: activeTab.rows
+				}).then(res => {
+					let data = res.data || []
+					for (let i = 0; i < data.length; i++) {
+						let birthday = formatDate(data[i].birthday)
+						data[i].birthday = birthday
+						data[i].constellation = getConstellation(birthday)
+					}
+					if (data[0]) {
+						this.date = formatDate(data[0].addtime).split(" ")[0]
+					}
+					if (refresh) {
+						activeTab.data = []
+						this.refreshEnd(activeTab)
+					}
+					activeTab.data = activeTab.data.concat(data)
+					this.offDown(activeTab)
+				}).catch(err => {
+					console.error(err)
+				})
+			},
+			getInviteList({
+				refresh = false
+			} = {}) {
+				let activeTab = this.newsList[1];
+				if (!refresh && activeTab.prevPage == activeTab.page) return
+				activeTab.prevPage = activeTab.page
+				activeTab.empty = false
+				get_invite_list({
+					page: activeTab.page,
+					rows: activeTab.rows
+				}).then(res => {
+					console.log(res.data, '邀约')
+					let data = res.data || []
+					for (let i = 0; i < data.length; i++) {
+						let birthday = formatDate(data[i].birthday)
+						data[i].birthday = birthday
+						data[i].starttime = formatDate(data[i].starttime).split(" ")[0]
+						data[i].endtime = formatDate(data[i].endtime).split(" ")[0]
+						data[i].constellation = getConstellation(birthday)
+						data[i].isignup = data[i].signupinviteuser && data[i].signupinviteuser.length ? data[i].signupinviteuser.includes(
+							this.userInfo.id) : false
+					}
+					if (refresh) {
+						activeTab.data = []
+						this.refreshEnd(activeTab)
+					}
+					activeTab.data = activeTab.data.concat(data)
+					this.offDown(activeTab)
+				}).catch(err => {
+					console.error(err)
+				})
+			},
+			getFeedList({
+				refresh = false
+			} = {}) {
+				let activeTab = this.newsList[2];
+				if (!refresh && activeTab.prevPage == activeTab.page) return
+				activeTab.prevPage = activeTab.page
+				activeTab.empty = false
+				get_feed_list({
+					page: activeTab.page,
+					rows: activeTab.rows
+				}).then(res => {
+					let data = res.data || []
+					console.log(data, '反馈')
+					for (let i = 0; i < data.length; i++) {
+						let nowtime = formatDate(data[i].nowtime)
+						let addtime = formatDate(data[i].addtime)
+						data[i].time = timeDis(addtime, nowtime)
+						data[i].isAdmire = data[i].Feelikes.includes(this.userInfo.id)
+						data[i].feeCommentLen = data[i].feeComment.length || 0
+					}
+					if (refresh) {
+						activeTab.data = []
+						this.refreshEnd(activeTab)
+					}
+					activeTab.data = activeTab.data.concat(data)
+					this.offDown(activeTab)
+				}).catch(err => {
+					console.error(err)
+				})
+			},
+			addSignCount(id) {
+				let tab = this.newsList[1].data
+				let current = tab.find(item => item.invitationid == id)
+				if (current) current.agree++
+			},
+			signup(item) {
+				console.log(item, '报名')
+				uni.showLoading({
+					title: "报名中..."
+				})
+				let users = uni.getStorageSync("users")
+				sign_up({
+					"invitationid": item.invitationid,
+					"inviteuserid": users.id,
+					"userid": item.userid
+				}).then(async res => {
+					uni.hideLoading()
+					if (res.code == 0) {
+						item.isignup = res.data == 1
+
+						if (!this.targrtUser[item.userid]) {
+							let trgetInfo = await this.getSenderUserInfo(Number(item.userid))
+							this.setTargrtUser(trgetInfo)
+						}
+
+						let title = this.targrtUser[item.userid].nickname
+						let cid = this.targrtUser[item.userid].uinpush.cid
+						let pushType = this.targrtUser[item.userid].uinpush.phonemodel
+						this.pushMessage({
+							body: '您的新的邀约动态',
+							title,
+							cid,
+							pushType,
+							obj: {}
+						})
+						this.txIm.sendMessageText(JSON.stringify({
+							type: -1
+						}), item.userid + '', true, true, true)
+						this.isSendCrap = true
+						uni.showToast({
+							title: res.data == 1 ? '报名成功' : '报名取消',
+						})
+					} else {
+						uni.showToast({
+							title: res.msg || res.message,
+							icon: 'none'
+						})
+					}
+				}).catch(err => {
+					uni.hideLoading()
+					// uni.showToast({
+					// 	title: err.message,
+					// 	icon: 'none'
+					// })
+					console.error(err)
+				})
+			},
+			filterHandle() {
+				uni.navigateTo({
+					url: '/pages/index/filter'
+				});
+			},
+			inviteHandle() {
+				this.setInvitationBadge(true)
+				uni.navigateTo({
+					url: '/pages/index/inviteInfoList'
+				});
+			},
+			goDetail(e) {
+				if (this.navigateFlag) {
+					return;
+				}
+				this.navigateFlag = true;
+				uni.navigateTo({
+					url: './detail/detail?title=' + e.title
+				});
+				setTimeout(() => {
+					this.navigateFlag = false;
+				}, 200)
+			},
+			close(index1, index2) {
+				uni.showModal({
+					content: '是否删除本条信息？',
+					success: (res) => {
+						if (res.confirm) {
+							this.newsList[index1].data.splice(index2, 1);
+						}
+					}
+				})
+			},
+			loadMore(e) {
+				let tab = this.newsList[this.tabIndex];
+				if (tab.empty || tab.noMore) return
+				tab.page++
+				switch (this.tabIndex) {
+					case 0:
+						this.getRecomList();
+						break;
+					case 1:
+						this.getInviteList()
+						break;
+					case 2:
+						this.getFeedList()
+						break;
+				}
+			},
+			ontabtap(e) {
+				let index = e.target.dataset.current || e.currentTarget.dataset.current;
+				this.switchTab(index);
+			},
+			ontabchange(e) {
+				let index = e.target.current || e.detail.current;
+				this.switchTab(index);
+			},
+			switchTab(index) {
+				if (this.newsList[index].data.length === 0) {
+					switch (index) {
+						case 0:
+							this.getRecomList();
+							break;
+						case 1:
+							this.getInviteList()
+							break;
+						case 2:
+							this.getFeedList()
+							break;
+					}
+				}
+
+				if (this.tabIndex === index) {
+					return;
+				}
+
+				// 缓存 tabId
+				if (this.newsList[this.tabIndex].data.length > MAX_CACHE_DATA) {
+					let isExist = this.cacheTab.indexOf(this.tabIndex);
+					if (isExist < 0) {
+						this.cacheTab.push(this.tabIndex);
+						//console.log("cache index:: " + this.tabIndex);
+					}
+				}
+
+				this.tabIndex = index;
+				this.scrollInto = this.tabBars[index].id;
+
+				// 释放 tabId
+				if (this.cacheTab.length > MAX_CACHE_PAGE) {
+					let cacheIndex = this.cacheTab[0];
+					this.clearTabData(cacheIndex);
+					this.cacheTab.splice(0, 1);
+					//console.log("remove cache index:: " + cacheIndex);
+				}
+			},
+			clearTabData(e) {
+				this.newsList[e].data.length = 0;
+				this.newsList[e].loadingText = "加载更多...";
+			},
+			refreshData() {},
+			onrefresh(e) {
+				var tab = this.newsList[this.tabIndex];
+				if (!tab.refreshFlag) {
+					return;
+				}
+				tab.refreshing = true;
+				tab.prevPage = 0
+				tab.page = 1
+				tab.refreshText = "正在刷新...";
+				switch (this.tabIndex) {
+					case 0:
+						this.getRecomList({
+							refresh: true
+						})
+						break;
+					case 1:
+						this.getInviteList({
+							refresh: true
+						})
+						break;
+					case 2:
+						this.getFeedList({
+							refresh: true
+						})
+						break;
+				}
+			},
+			refreshEnd(tab) {
+				setTimeout(() => {
+					this.refreshData();
+					this.pulling = true;
+					tab.refreshing = false;
+					tab.refreshFlag = false;
+					tab.refreshText = "已刷新";
+					setTimeout(() => { // TODO fix ios和Android 动画时间相反问题
+						this.pulling = false;
+					}, 500);
+				}, 2000)
+			},
+			onpullingdown(e) {
+				var tab = this.newsList[this.tabIndex];
+				if (tab.refreshing || this.pulling) {
+					return;
+				}
+				if (Math.abs(e.pullingDistance) > Math.abs(e.viewHeight)) {
+					tab.refreshFlag = true;
+					tab.refreshText = "释放立即刷新";
+					tab.empty = false
+					//tab.noMore = false
+				} else {
+					tab.refreshFlag = false;
+					tab.refreshText = "下拉可以刷新";
+
+				}
+			},
+			toFeedInfo(options) {
+				getApp().globalData.feedInfo = options
+				uni.navigateTo({
+					url: `/pages/index/feedInfo`
+				})
+			},
+			offDown(activeTab) {
+				if (!activeTab.data || !activeTab.data.length) {
+					activeTab.empty = true
+				} else {
+					activeTab.empty = false
+				}
+				if (activeTab.data.length < activeTab.page * activeTab.rows) {
+					activeTab.noMore = true
+				} else {
+					activeTab.noMore = false
+				}
+			},
+			admireCheck(id) {
+				let current = this.newsList[2].data.find(item => item.id == id)
+				current.isAdmire = !current.isAdmire
+				if (current.isAdmire) current.counts++
+				else current.counts--
+			},
+			toUsetInfo(data) {
+				uni.navigateTo({
+					url: `/pages/user/info?userid=${data.userid}`
+				});
+			},
+			feedCommentHandel(data) {
+				let current = this.newsList[2].data.find(item => item.id == data.pid)
+				if(current){
+					current.feeComment.push(data)
+					current.feeCommentLen = current.feeComment.length
+				} else {
+					getApp().globalData.feedInfo.feeComment.push(data)
+					getApp().globalData.feedInfo.feeCommentLen = getApp().globalData.feedInfo.feeComment.length
+				}
+				
+			},
+			updateCommentHandel(data) {
+
+				let current = this.newsList[2].data.find(item => item.id == data.id)
+				if(current){
+					current.feeComment = data.feecomment
+					current.feeCommentLen = current.feeComment.length
+					current.counts = data.fee_like_count
+				}
+				
+				if(getApp().globalData.feedInfo.id == data.id){
+					getApp().globalData.feedInfo.feeComment = data.feecomment
+					getApp().globalData.feedInfo.feeCommentLen = data.feecomment.length
+					getApp().globalData.feedInfo.counts = data.fee_like_count
+					getApp().globalData.feedInfo.nowtime = data.nowtime
+				}
+				
+			},
+			updatePage(param) {
+				this.param = Object.assign({}, this.param, param)
+				this.init()
+			},
+			removeSignList(id) {
+				let tab = this.newsList[1].data
+				let item = tab.find(item => item.invitationid == id)
+				item.isignup = false
+			},
+			shieldFeed(data){
+				let pid = data.feedid
+				let current = this.newsList[2].data.find(item => item.id == pid)
+				if (current){
+					let index = current.feeComment.findIndex(item=>item.id == data.id)
+					if(index > -1){
+						current.feeComment.splice(index, 1)
+						current.feeCommentLen = current.feeComment.length
+					}
+				} else {
+					if(getApp().globalData.feedInfo && getApp().globalData.feedInfo.feeComment && getApp().globalData.feedInfo.id == pid){
+						let index = getApp().globalData.feedInfo.feeComment.findIndex(item=>item.id == data.id)
+						if(index > -1){
+							getApp().globalData.feedInfo.feeComment.splice(index, 1)
+							getApp().globalData.feedInfo.feeCommentLen = getApp().globalData.feedInfo.feeComment.length
+						}
+					}
+				}
+			},
+			delComment(data) {
+
+				uni.showModal({
+					title: '提示',
+					content: '删除评论后不可恢复，确定执行删除操作吗？',
+					success: (res) => {
+						if (res.confirm) {
+							del_comment({
+								id: data.id,
+								feedid: data.feedid,
+								userid: data.userid
+							}).then(res => {
+								console.log(res, 'res')
+								if (res.code == 0) {
+									uni.showToast({
+										title: "删除成功！",
+									})
+									let pid = getApp().globalData.feedInfo.id
+									let current = this.newsList[2].data.find(item => item.id == pid)
+									if (current){
+										current.feeComment.splice(data.index, 1)
+										current.feeCommentLen = current.feeComment.length
+									} else {
+										getApp().globalData.feedInfo.feeComment.splice(data.index, 1)
+										getApp().globalData.feedInfo.feeCommentLen = getApp().globalData.feedInfo.feeComment.length
+									}
+									
+								} else {
+									uni.showToast({
+										title: "删除失败",
+										icon: "none"
+									})
+								}
+							}).catch(err => {
+								console.log(err)
+							})
+						}
+					}
+				});
+			},
+			deleRecom(item, index, tabIndex) {
+				if (this.userInfo.type > 0) {
+					uni.showModal({
+						title: '提示',
+						content: '删除后不可恢复，确定执行删除操作吗？',
+						success: (res) => {
+							if (res.confirm) {
+								uni.showLoading({
+									title: "正在删除..."
+								})
+								del_recomm({
+									id: item.id + '',
+									type: item.type + ''
+								}).then(res => {
+									console.log(res, 'yyy')
+									uni.hideLoading()
+									if (res.code == 0) {
+										uni.showToast({
+											title: "删除成功！",
+										})
+										let activeTab = this.newsList[tabIndex];
+										activeTab.data.splice(index, 1)
+									} else {
+										uni.showToast({
+											title: "删除失败",
+											icon: "none"
+										})
+									}
+								}).catch(err => {
+									uni.hideLoading()
+									console.log(err)
+								})
+							}
+						}
+					});
+				}
+
+			}
+		}
+	}
+</script>
+
+<style scoped>
+	/* #ifndef APP-PLUS */
+	page {
+		width: 100%;
+		min-height: 100%;
+		display: flex;
+	}
+
+	/* #endif */
+
+	.tabs {
+		flex: 1;
+		flex-direction: column;
+		overflow: hidden;
+		background-color: #f6f6f6;
+		/* #ifdef MP-ALIPAY || MP-BAIDU */
+		height: 100vh;
+		/* #endif */
+	}
+
+	.tab-group {
+		display: flex;
+		flex-direction: row;
+		align-items: flex-start;
+		justify-content: space-between;
+		align-items: flex-start;
+		padding-left: 24rpx;
+		padding-right: 24rpx;
+		padding-top: 12px;
+	}
+
+	.icon-btn {
+		width: 34rpx;
+		height: 34rpx;
+		margin: 24rpx;
+	}
+
+	.nvitation-icon-group {
+		width: 50rpx;
+		height: 50rpx;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		margin: 18rpx;
+	}
+
+	.scroll-h {
+		width: 550rpx;
+		flex-direction: row;
+		/* #ifndef APP-PLUS */
+		white-space: nowrap;
+		/* #endif */
+		/* flex-wrap: nowrap; */
+		/* border-color: #cccccc;
+		border-bottom-style: solid;
+		border-bottom-width: 1px; */
+		margin-bottom: 10px;
+	}
+
+	.uni-tab-item {
+		/* #ifndef APP-PLUS */
+		display: inline-block;
+		/* #endif */
+		flex-wrap: nowrap;
+	}
+
+	.uni-tab-group {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+	}
+
+	.uni-tab-item-title {
+		width: 120rpx;
+		text-align: center;
+		color: #555;
+		font-size: 36rpx;
+		height: 80rpx;
+		line-height: 80rpx;
+		flex-wrap: nowrap;
+		/* #ifndef APP-PLUS */
+		white-space: nowrap;
+		/* #endif */
+	}
+
+	.border-img {
+		width: 112rpx;
+		height: 20rpx;
+	}
+
+	.uni-tab-item-title-active {
+		color: #e1b893;
+		font-size: 48rpx;
+		font-weight: 600;
+	}
+
+	.date-group {
+		flex-direction: row;
+		align-items: center;
+		padding-left: 24rpx;
+		padding-right: 24rpx;
+		margin-bottom: 10px;
+	}
+
+	.date {
+		font-size: 26rpx;
+		color: #999999;
+		width: 200rpx;
+	}
+
+	.date-line {
+		height: 1rpx;
+		background-color: #cccccc;
+		width: 500rpx;
+	}
+
+	.swiper-box {
+		flex: 1;
+	}
+
+	.swiper-item {
+		flex: 1;
+		flex-direction: row;
+	}
+
+	.scroll-v {
+		flex: 1;
+		/* #ifndef MP-ALIPAY */
+		flex-direction: column;
+		/* #endif */
+		width: 750rpx;
+	}
+
+	.update-tips {
+		position: absolute;
+		left: 0;
+		top: 41px;
+		right: 0;
+		padding-top: 5px;
+		padding-bottom: 5px;
+		background-color: #FDDD9B;
+		align-items: center;
+		justify-content: center;
+		text-align: center;
+	}
+
+	.update-tips-text {
+		font-size: 14px;
+		color: #ffffff;
+	}
+
+	.refresh {
+		width: 750rpx;
+		height: 64px;
+		justify-content: center;
+	}
+
+	.refresh-view {
+		flex-direction: row;
+		flex-wrap: nowrap;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.refresh-icon {
+		width: 30px;
+		height: 30px;
+		transition-duration: .5s;
+		transition-property: transform;
+		transform: rotate(0deg);
+		transform-origin: 15px 15px;
+	}
+
+	.refresh-icon-active {
+		transform: rotate(180deg);
+	}
+
+	.loading-icon {
+		width: 20px;
+		height: 20px;
+		margin-right: 5px;
+		color: #999999;
+	}
+
+	.loading-text {
+		margin-left: 2px;
+		font-size: 16px;
+		color: #999999;
+	}
+
+	.loading-more {
+		align-items: center;
+		justify-content: center;
+		padding-top: 10px;
+		padding-bottom: 10px;
+		text-align: center;
+	}
+
+	.loading-more-text {
+		font-size: 28rpx;
+		color: #999;
+	}
+
+	.sign-btn-group {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+	}
+
+	.sign-btn {
+		background-color: #e1b893;
+		width: 128rpx;
+		height: 48rpx;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: 30rpx;
+	}
+
+	.btnDfaultBg {
+		background-color: #e6e6e6;
+	}
+
+	.sign-btn-text {
+		color: #595757;
+		font-size: 26rpx;
+		line-height: 48rpx;
+		width: 128rpx;
+		height: 48rpx;
+		text-align: center;
+	}
+
+	.num-text {
+		font-size: 24rpx;
+		color: #e1b893;
+		margin-top: 5px;
+	}
+
+	.numDefaultColor {
+		color: #999999;
+	}
+
+	.invitation-badge {
+		width: 18rpx;
+		height: 18rpx;
+		background-color: red;
+		border-radius: 50%;
+	}
+</style>

@@ -1,0 +1,188 @@
+<template>
+	<view class="comment-item">
+		<view class="user-info">
+			<view class="photo-img">
+				<image class="photo-img" :src="options.avatarimg"></image>
+			</view>
+			<view class="user-name">
+				<text class="name">{{options.nickname}}</text>
+				<text class="time">{{time}}</text>
+			</view>
+			<view class="floor">
+				<text class="floor">{{index + 1}}楼</text>
+			</view>
+		</view>
+		<text class="message">{{content}}
+		</text>
+		<view class="btn-wrap" v-if="options.service==1 && userInfo.type > 0" @click="shield">
+			<text class="btn">屏蔽</text>
+		</view>
+	</view>
+</template>
+
+<script>
+	import {
+		mapGetters,
+		mapMutations
+	} from 'vuex'
+	import {
+		formatDate,
+		timeDis,
+		filterEmotion,
+	} from '@/utils/param.js'
+	import {
+		change_feecomment_status
+	} from "@/common/http.nvue.api.js"
+	export default {
+		props: {
+			options: {
+				type: Object,
+				default: function(e) {
+					return {}
+				}
+			},
+			index:{
+				type:Number|String,
+				default:0
+			},
+			islast:{
+				type:Boolean,
+				default:false
+			}
+		},
+		data(){
+			return{
+				globalData:null
+			}	
+		},
+		created(){
+			this.globalData = getApp().globalData.feedInfo
+		},
+		computed:{
+			...mapGetters([
+				'userInfo'
+			]),
+			time(){
+				if(this.options.addtime == "") return "刚刚"
+				let addtime = formatDate(this.options.addtime)
+				let nowtime = formatDate(this.globalData.nowtime)
+				
+				return timeDis(addtime, nowtime)
+			},
+			content(){
+				return filterEmotion(this.options.content)
+			}
+		},
+		methods: {
+			shield(){
+				uni.showModal({
+					title: '提示',
+					content: '确定屏蔽这个条评论吗？',
+					success: (res) => {
+						if (res.confirm) {
+							change_feecomment_status({
+								id: this.options.id,
+								status:2
+							}).then(res => {
+								if (res.code == 0) {
+									uni.showToast({
+										title: "已屏蔽！",
+									})
+									uni.$emit('shield', this.options)
+								} else {
+									uni.showToast({
+										title: "屏蔽失败",
+										icon: "none"
+									})
+								}
+							}).catch(err => {
+								console.log(err)
+							})
+						}
+					}
+				});
+			}
+		}
+	}
+</script>
+
+<style scoped>
+	.comment-item{
+		flex-direction: column;
+		padding-top: 30rpx;
+		padding-left: 30rpx;
+		padding-right: 30rpx;
+		/* #ifndef APP-PLUS */
+		padding-bottom: 20rpx;
+		/* #endif */
+		background-color: white;
+		border-bottom-width: 2rpx;
+		border-bottom-color: #f0f0f0;
+	}
+	.user-info{
+		flex: 1;
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+	}
+	.user-name{
+		flex: 1;
+		margin-left: 20rpx;
+		transform: translateY(4rpx);
+	}
+	.name{
+		color: #333333;
+		font-size: 28rpx;
+		font-weight: bold;
+		overflow: hidden;
+		text-overflow:ellipsis;  
+		/* #ifndef APP-PLUS */
+		width: 500rpx;
+		white-space: nowrap;
+		/* #endif */
+		/* #ifdef APP-PLUS */
+		lines:1;
+		text-overflow:ellipsis;
+		/* #endif */
+	}
+	.time{
+		color: #999999;
+		font-size: 24rpx;
+	}
+	.photo-img{
+		width: 72rpx;
+		height: 72rpx;
+		border-radius: 50%;
+	}
+	.floor{
+		width: 70rpx;
+		color: #999999;
+		font-size: 24rpx;
+		margin-left: 10rpx;
+	}
+	.message{
+		margin-top: 20rpx;
+		padding-left: 92rpx;
+		font-size: 28rpx;
+		color: #555555;
+		line-height: 40rpx;
+	}
+	.btn-wrap{
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		justify-content: flex-end;
+		padding-bottom: 20rpx;
+	}
+	.btn{
+		width: 140rpx;
+		height: 60rpx;
+		background-color: #E6E6E6;
+		border-radius: 30rpx;
+		color: #595757;
+		font-size: 24rpx;
+		line-height: 60rpx;
+		text-align: center;
+	}
+</style>

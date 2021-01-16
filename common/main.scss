@@ -1,0 +1,39 @@
+page{
+	background-color: #F6F6F6;
+}
+.warning-btn{
+	background: #edd0b2 !important;
+	color: #64605e !important;
+}
+.off-border-btn:after{
+	border-width: 0 !important;
+}
+view,
+text {
+	box-sizing: border-box;
+}
+.status_bar {
+	height: var(--status-bar-height);
+	width: 100%;
+}
+/* login */
+.login-content {
+	.u-border-bottom:after{
+		border: 0;
+	}
+	.u-form-item{
+		padding: 20px 0 5px !important;
+	}
+}
+/* loginEnd */
+
+/* mobile */
+.mobile-content {
+	.u-border-bottom:after{
+		border: 0;
+	}
+	.u-form-item{
+		padding: 20px 0 5px !important;
+	}
+}
+/* mobileEnd */

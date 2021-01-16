@@ -1,0 +1,50 @@
+<template>
+	<view class="emotion" :style="{height:height + 'px'}">
+		<view class="item" @click="change(item.codes)" v-for="item in emotion" :key="item.codes">{{item.char}}</view>
+		<view class="item" v-for="item in emotion.length" :key="item"></view>
+	</view>
+</template>
+
+<script>
+	import emotion from "@/common/emotion.js"
+	export default {
+		props: {
+			height: {
+				type: Number,
+				default: 200
+			}
+		},
+		components: {
+
+		},
+		data() {
+			return {
+				emotion: emotion
+			}
+		},
+		methods: {
+			close() {
+				//this.$emit('close')
+			},
+			change(codes){
+				this.$emit("change", codes)
+			}
+		}
+	}
+</script>
+<style scoped>
+	.emotion {
+		background-color: white;
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		flex-wrap: wrap;
+		padding: 8rpx;
+		justify-content: center;
+	}
+	.item{
+		padding: 8rpx;
+		width: 70rpx;
+		height: 70rpx;
+	}
+</style>

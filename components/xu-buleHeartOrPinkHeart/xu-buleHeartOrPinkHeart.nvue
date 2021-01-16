@@ -1,0 +1,27 @@
+<template>
+	<view class="bule-or-pink">
+		<image v-if="sex===1" class="sex-icon" src="/static/icon/lanxin.png" mode="widthFix"></image>
+		<image v-else class="sex-icon" src="/static/icon/fenxin@3x.png" mode="widthFix"></image>
+	</view>
+</template>
+
+<script>
+	export default {
+		props:{
+			sex:{
+				type:Number
+			}
+		}
+	}
+</script>
+
+<style scoped>
+	.bule-or-pink{
+		margin-right: 10rpx;
+	}
+	.sex-icon{
+		width: 24rpx;
+		height: 24rpx;
+		
+	}
+</style>

@@ -1,0 +1,64 @@
+<template>
+	<view class="up-mic-container" @click="toggletext">
+		<text class="up-mic-text" v-if="textIsShow">上麦</text>
+		<image v-if="!textIsShow" class="micState" :src="micIconIsOn" mode="widthFix"></image>
+	</view>
+</template>
+
+<script>
+	export default {
+		data(){
+			return{
+				urlList:[
+					'/static/icon/mic-on.png',
+					"/static/icon/mic-off.png",
+				]
+			}
+		},
+		props:{
+			textIsShow:{
+				type:Boolean,
+				default:true
+			},
+			MicIsOn:{
+				type:Boolean,
+				default:true
+			}
+		},
+		computed:{
+			micIconIsOn(){
+				return !this.textIsShow && this.MicIsOn?this.urlList[0]:this.urlList[1]
+			}
+		},
+		methods:{
+			toggletext(){
+				if(this.textIsShow){ //如果没有上麦就上麦
+					console.log('我点了上麦')
+					this.$emit('upmic')
+				}else{
+					this.$emit('popupMicSelect')
+				}
+				
+			}
+		}
+	}
+</script>
+
+<style scoped>
+	.up-mic-container{
+		width:74rpx;
+		height: 74rpx;
+		background-color: rgba(255,255,255,0.3);
+		border-radius: 100rpx;
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+	}
+	.up-mic-text{
+		color: #FFFFFF;
+		font-size: 28rpx;
+	}
+	.micState{
+		width: 40rpx;
+	}
+</style>

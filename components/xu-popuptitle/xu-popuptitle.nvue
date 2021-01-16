@@ -1,0 +1,49 @@
+<template>
+	<view class="popup-content" :class="{positionLeft:position=='left'}" style="position: relative;">
+		<d-text size="32" :text="text" color-custom="#fff" line-height="88rpx" ></d-text>
+		<view class="back-icon" style="position: absolute; left: 25rpx;top: 0;" v-if="hasBackIcon" @click="backCallback">
+			<image style=" width:24rpx;" src="/static/icon/fanhui-white@3x.png" mode="widthFix"></image>
+		</view>
+	</view>
+</template>
+
+<script>
+	export default {
+		props:{
+			text:String,
+			hasBackIcon:Boolean,
+			position:String
+		},
+		methods:{
+			backCallback(){ //返回icon的点击事件
+				console.log('我草')
+				this.$emit('backCallback')
+			}
+		}
+	}
+</script>
+<style scoped>
+	.popup-content{
+		width: 750rpx;
+		height: 88rpx;
+		border-bottom-width: 3rpx;
+		border-bottom-color: #082036;
+		background-color: #021526;
+		border-top-left-radius:38rpx;
+		border-top-right-radius:38rpx;
+		flex-direction: row;
+		justify-content: center;
+		align-items: center;
+	}
+	.positionLeft{
+		justify-content:flex-start;
+		padding-left: 50rpx;
+	}
+	.back-icon{
+		width: 28rpx;
+		height: 88rpx;
+		flex-direction: row;
+		align-items: center;
+		
+	}
+</style>

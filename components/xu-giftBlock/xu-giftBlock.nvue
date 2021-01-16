@@ -1,0 +1,56 @@
+<template>
+	<view class="gift-block-content" @click="selectThisBlock">
+		<image class="gift-img" :src="renderJson.image" mode="aspectFill" :class="{giftimgactive:renderJson.isActive}"></image>
+		<text class="gift-name">{{renderJson.name}}</text>
+		<text class="gift-price">{{renderJson.price}}钻</text>
+	</view>
+</template>
+
+<script>
+	export default {
+		props:{
+			renderJson:Object,
+			idx:Number,
+			index:Number
+		},
+		methods:{
+			selectThisBlock(){
+				let json ={
+					msg:this.renderJson,
+					index:[this.index,this.idx]
+				}
+				this.$emit('clickCallBack',json)
+			}
+		}
+	}
+</script>
+
+<style scoped>
+	.gift-block-content{
+		width: 140rpx;
+		height: 200rpx;
+		align-items: center;
+		margin-bottom: 20rpx;
+	}
+	.gift-img{
+		width: 127rpx;
+		height: 127rpx;
+		border-radius: 20rpx;
+		border-color:#021526;
+		border-width: 3rpx;
+		border-style: solid;
+	}
+	.giftimgactive{
+		border-color:#f72585;
+	}
+	.gift-name{
+		color: #FFFFFF;
+		font-size: 28rpx;
+		margin-top: 5rpx;
+	}
+	.gift-price{
+		color: #FFFFFF;
+		font-size: 28rpx;
+		margin-top: 5rpx;
+	}
+</style>

@@ -1,0 +1,99 @@
+<template>
+	<view class="content">
+		<image mode="aspectFill" class="img" @click="gotoOpenUrl" :src="options.cover"></image>
+		<view class="footer">
+			<text class="date">{{options.starttime}} - {{options.endtime}}</text>
+			<text class="delbtn" v-if="userInfo.type > 0" @click="deleRoom">删除</text>
+		</view>
+	</view>
+</template>
+
+<script>
+	import {
+		mapGetters,
+		mapMutations
+	} from 'vuex'
+	import {
+		get_hitalk_token
+	} from "@/common/http.nvue.api.js"
+	export default {
+		props:{
+			options: {
+				type: Object,
+				default: function(e) {
+					return {}
+				}
+			}
+		},
+		computed:{
+			...mapGetters([
+				"agora_token",
+				"userInfo"
+			])
+		},
+		methods:{
+			gotoOpenUrl(){
+				let startime = new Date(this.options.starttime).getTime()
+				let nowTime = new Date().getTime()
+				if (startime > nowTime) {
+					uni.showToast({
+						title: "派对暂未开启！",
+						icon: "none"
+					})
+					return
+				}
+				
+				let refresh_token = uni.getStorageSync("refresh_token")
+				let token = uni.getStorageSync("token")
+				
+				console.log(this.options, '房间信息')
+				console.log(`msg=${token}${refresh_token}${this.options.hitalkid}`, '跳转享玩参数')
+				//return
+				uni.navigateTo({
+				    url: `/pages/room/room?msg=${token}${refresh_token}${this.options.id}`
+				});
+				
+			},
+			deleRoom(){
+				this.$emit('deleRoom',this.options)
+			}
+		}
+	}
+</script>
+
+<style scoped>
+.content{
+	width: 690rpx;
+	background-color: white;
+	margin-left: 30rpx;
+	margin-right: 30rpx;
+	display: flex;
+	flex-direction: column;
+	margin-top: 25rpx;
+	margin-bottom: 25rpx;
+	border-radius: 10rpx;
+}
+.img{
+	width: 690rpx;
+	height: 280rpx;
+	border-radius: 10rpx;
+}
+.date{
+	font-size: 26rpx;
+	color: #999999;
+	padding-top: 20rpx;
+	padding-bottom: 20rpx;
+}
+.footer{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	justify-content: space-between;
+	padding-left: 15rpx;
+	padding-right: 15rpx;
+}
+.delbtn{
+	font-size: 26rpx;
+	color: #3399ff;
+}
+</style>

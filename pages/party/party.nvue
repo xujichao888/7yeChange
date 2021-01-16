@@ -1,0 +1,587 @@
+<template>
+	<view class="tabs">
+		<uni-nav-bar title="" background-color="rgb(248, 248, 248)" status-bar :border="false">
+			<view slot="left" class="nav-title"><text class="nav-text">派对</text></view>
+			<uni-icons v-if="userInfo.type > 0" type="plusempty" slot="right" size="30" @click="toAddRoom" />
+		</uni-nav-bar>
+		<swiper class="swiper-box" style="flex: 1;" :duration="300" @change="ontabchange">
+			<swiper-item class="swiper-item">
+				<!-- #ifdef APP-NVUE -->
+				<list class="scroll-v list" enableBackToTop="true" scroll-y loadmoreoffset="15" @loadmore="loadMore">
+					<refresh class="refresh" @refresh="onrefresh" @pullingdown="onpullingdown" :display="refreshing ? 'show' : 'hide'">
+						<div class="refresh-view">
+							<image class="refresh-icon" :src="refreshIcon" :style="{width: (refreshing || pulling) ? 0: '30px'}" :class="{'refresh-icon-active': refreshFlag}"></image>
+							<loading-indicator class="loading-icon" animating="true" v-if="refreshing"></loading-indicator>
+							<text class="loading-text">{{refreshText}}</text>
+						</div>
+					</refresh>
+					<cell v-for="(item,index) in dataList" :key="item.id">
+						<party-item @deleRoom="delRoom(item,index)" :options="item" :index="index"></party-item>
+					</cell>
+					<!-- <cell>
+						<uni-swipe-action>
+							<uni-swipe-action-item :disabled="userInfo.type == 0" v-for="(item,index) in dataList" :key="item.id">
+								<party-item :options="item" :index="index"></party-item>
+								<template v-slot:right v-if="userInfo.type == 1">
+									<view @click="delRoom(item, index)" class="slot-button"><text class="slot-button-text">删除</text></view>
+								</template>
+							</uni-swipe-action-item>
+						</uni-swipe-action>
+					</cell> -->
+					<cell class="loading-more" v-if="empty">
+						<!-- <text class="loading-more-text">暂无数据</text> -->
+						<image class="7ye-empty-content" src="/static/img/empty-paty.png"></image>
+					</cell>
+					<cell class="loading-more" v-else-if="noMore && dataList.length > 8">
+						<text class="loading-more-text">没有更多了~</text>
+					</cell>
+					<cell class="loading-more" v-else-if="dataList.length > 8">
+						<text class="loading-more-text">{{loadingText}}</text>
+					</cell>
+				</list>
+				<!-- #endif -->
+				<!-- #ifndef APP-NVUE -->
+				<scroll-view class="scroll-v list" enableBackToTop="true" scroll-y @scrolltolower="loadMore">
+					<view v-for="(item,index) in dataList" :key="item.id" @click="joinRoom(item)">
+						<party-item :options="item" :index="index"></party-item>
+					</view>
+					<view class="loading-more" v-if="empty">
+						<text class="loading-more-text">暂无数据~</text>
+					</view>
+					<view class="loading-more" v-else-if="noMore && dataList.length > 8">
+						<text class="loading-more-text">没有更多了~</text>
+					</view>
+					<view class="loading-more" v-else-if="dataList.length > 8">
+						<text class="loading-more-text">{{loadingText}}</text>
+					</view>
+				</scroll-view>
+				<!-- #endif -->
+			</swiper-item>
+		</swiper>
+		<uni-popup ref="popupmes" type="message">
+			<uni-popup-message type="error" message="网络连接断开" :duration="0"></uni-popup-message>
+		</uni-popup>
+	</view>
+</template>
+<script>
+	import {
+		mapGetters,
+		mapMutations
+	} from 'vuex'
+	import {
+		get_room,
+		del_room,
+		get_hitalk_token
+	} from "@/common/http.nvue.api.js"
+	import {
+		formatDate
+	} from '@/utils/param.js'
+	import partyItem from './partyItem.nvue';
+	import uniNavBar from '@/components/nav-bar/uni-nav-bar/uni-nav-bar.vue'
+	import uniSwipeAction from '@/components/uni-swipe-action/uni-swipe-action.vue'
+	import uniSwipeActionItem from '@/components/uni-swipe-action-item/uni-swipe-action-item.vue'
+
+	export default {
+		components: {
+			partyItem,
+			uniNavBar,
+			uniSwipeAction,
+			uniSwipeActionItem
+		},
+		computed: {
+			...mapGetters([
+				"userInfo",
+				"networkState"
+			])
+		},
+		data() {
+			return {
+				prevPage: 0,
+				page: 1,
+				rows: 10,
+				dataList: [],
+				isLoading: false,
+				refreshText: "",
+				loadingText: '加载更多...',
+				empty: false,
+				noMore: false,
+				cacheTab: [],
+				tabIndex: 0,
+				tabBars: [{
+					name: '推荐',
+					id: 'tuijian'
+				}],
+				scrollInto: "",
+				showTips: false,
+				navigateFlag: false,
+				refreshing: false,
+				refreshFlag: false,
+				pulling: false,
+				refreshIcon: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAMAAABg3Am1AAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAB5QTFRFcHBw3Nzct7e39vb2ycnJioqK7e3tpqam29vb////D8oK7wAAAAp0Uk5T////////////ALLMLM8AAABxSURBVHja7JVBDoAgDASrjqj//7CJBi90iyYeOHTPMwmFZrHjYyyFYYUy1bwUZqtJIYVxhf1a6u0R7iUvWsCcrEtwJHp8MwMdvh2amHduiZD3rpWId9+BgPd7Cc2LIkPyqvlQvKxKBJ//Qwq/CacAAwDUv0a0YuKhzgAAAABJRU5ErkJggg=="
+			}
+		},
+		watch: {
+			networkState: {
+				handler(val) {
+					let _this = this
+
+					function changeState(state) {
+						if (!_this.$refs.popupmes) {
+							setTimeout(() => {
+								changeState()
+							}, 500)
+							return
+						}
+						if (val) _this.$refs.popupmes.close()
+						else _this.$refs.popupmes.open()
+					}
+					changeState(val)
+				},
+				immediate: true
+			}
+		},
+		onShow() {
+			if (this.userInfo && this.userInfo.type == 0) {
+				uni.showTabBar()
+			}
+		},
+		onLoad() {
+			uni.$on('updateRoom', this.updateRoom)
+			this.init()
+		},
+		onUnload() {
+			uni.$off('updateRoom', this.updateRoom)
+		},
+		onHide() {
+			this.setPrevPage("/pages/party/party")
+		},
+		methods: {
+			...mapMutations([
+				'setPrevPage'
+			]),
+			init() {
+				setTimeout(() => {
+					this.getList();
+				}, 350)
+			},
+			delRoom(item, index) {
+				uni.showModal({
+					title: '提示',
+					content: '删除房间后不可恢复，确定执行删除操作吗？',
+					success: (res) => {
+						if (res.confirm) {
+							uni.showLoading({
+								title: "正在删除..."
+							})
+							del_room({
+								id: item.id,
+								hitalkid: item.hitalkid
+							}).then(res => {
+								console.log(res, 'res')
+								uni.hideLoading()
+								if (res.code == 0) {
+									uni.showToast({
+										title: "删除成功！",
+									})
+									this.dataList.splice(index, 1)
+								} else {
+									uni.showToast({
+										title: "删除失败",
+										icon: "none"
+									})
+								}
+							}).catch(err => {
+								uni.hideLoading()
+								console.log(err)
+							})
+						}
+					}
+				});
+			},
+			updateRoom() {
+				this.prevPage = 0
+				this.page = 1
+
+				this.getList({
+					refresh: true
+				})
+			},
+			getList({
+				refresh = false
+			} = {}) {
+				if (!refresh && this.prevPage == this.page) return
+				this.prevPage = this.page
+				this.empty = false
+				get_room({
+					page: this.page,
+					rows: this.rows
+				}).then(res => {
+					console.log(res)
+					let data = res.data || []
+					for (let i = 0; i < data.length; i++) {
+						data[i].starttime = formatDate(data[i].starttime)
+						data[i].endtime = formatDate(data[i].endtime)
+					}
+					if (refresh) {
+						this.dataList = []
+						this.refreshEnd()
+					}
+					this.dataList = this.dataList.concat(data)
+					this.offDown()
+				}).catch(err => {
+					console.error(err)
+				})
+			},
+			goDetail(e) {
+				if (this.navigateFlag) {
+					return;
+				}
+				this.navigateFlag = true;
+				uni.navigateTo({
+					url: './detail/detail?title=' + e.title
+				});
+				setTimeout(() => {
+					this.navigateFlag = false;
+				}, 200)
+			},
+			close(index1, index2) {
+				uni.showModal({
+					content: '是否删除本条信息？',
+					success: (res) => {
+						if (res.confirm) {
+							this.newsList[index1].data.splice(index2, 1);
+						}
+					}
+				})
+			},
+			loadMore() {
+				if (this.empty || this.noMore) return
+				this.page++
+				this.getList();
+			},
+			ontabchange(e) {
+				let index = e.target.current || e.detail.current;
+				this.switchTab(index);
+			},
+			switchTab(index) {
+				if (this.newsList[index].data.length === 0) {
+					this.getList(index);
+				}
+
+				if (this.tabIndex === index) {
+					return;
+				}
+
+				// 缓存 tabId
+				if (this.newsList[this.tabIndex].data.length > MAX_CACHE_DATA) {
+					let isExist = this.cacheTab.indexOf(this.tabIndex);
+					if (isExist < 0) {
+						this.cacheTab.push(this.tabIndex);
+						//console.log("cache index:: " + this.tabIndex);
+					}
+				}
+
+				this.tabIndex = index;
+				this.scrollInto = this.tabBars[index].id;
+
+				// 释放 tabId
+				if (this.cacheTab.length > MAX_CACHE_PAGE) {
+					let cacheIndex = this.cacheTab[0];
+					this.clearTabData(cacheIndex);
+					this.cacheTab.splice(0, 1);
+					//console.log("remove cache index:: " + cacheIndex);
+				}
+			},
+			clearTabData(e) {
+				this.dataList.length = 0;
+				this.loadingText = "加载更多...";
+			},
+			onrefresh() {
+				if (!this.refreshFlag) {
+					return;
+				}
+				this.refreshing = true;
+				this.prevPage = 0
+				this.page = 1
+				this.refreshText = "正在刷新...";
+
+				this.getList({
+					refresh: true
+				})
+			},
+			onpullingdown(e) {
+				if (this.refreshing || this.pulling) {
+					return;
+				}
+				if (Math.abs(e.pullingDistance) > Math.abs(e.viewHeight)) {
+					this.refreshFlag = true;
+					this.refreshText = "释放立即刷新";
+				} else {
+					this.refreshFlag = false;
+					this.refreshText = "下拉可以刷新";
+				}
+			},
+			refreshEnd() {
+				setTimeout(() => {
+					this.pulling = true;
+					this.refreshing = false;
+					this.refreshFlag = false;
+					this.refreshText = "已刷新";
+					setTimeout(() => { // TODO fix ios和Android 动画时间相反问题
+						this.pulling = false;
+					}, 500);
+				}, 2000);
+			},
+			offDown() {
+				if (!this.dataList || !this.dataList.length) {
+					this.empty = true
+				} else {
+					this.empty = false
+				}
+				if (this.dataList.length < this.page * this.rows) {
+					this.noMore = true
+				} else {
+					this.noMore = false
+				}
+			},
+			toAddRoom() {
+				uni.navigateTo({
+					url: `/pages/service/addRoom`
+				})
+			}
+		}
+	}
+</script>
+
+<style scoped>
+	/* #ifndef APP-PLUS */
+	page {
+		width: 100%;
+		min-height: 100%;
+		display: flex;
+	}
+
+	/* #endif */
+
+	.tabs {
+		flex: 1;
+		flex-direction: column;
+		overflow: hidden;
+		background-color: #f6f6f6;
+		/* #ifdef MP-ALIPAY || MP-BAIDU */
+		height: 100vh;
+		/* #endif */
+	}
+
+	.tab-group {
+		display: flex;
+		flex-direction: row;
+		align-items: flex-start;
+		justify-content: space-between;
+		align-items: flex-start;
+		padding-left: 24rpx;
+		padding-right: 24rpx;
+	}
+
+	.icon-btn {
+		width: 30rpx;
+		height: 30rpx;
+		margin: 24rpx;
+	}
+
+	.scroll-h {
+		width: 550rpx;
+		flex-direction: row;
+		/* #ifndef APP-PLUS */
+		white-space: nowrap;
+		/* #endif */
+		/* flex-wrap: nowrap; */
+		/* border-color: #cccccc;
+		border-bottom-style: solid;
+		border-bottom-width: 1px; */
+		margin-bottom: 10px;
+	}
+
+	.uni-tab-item {
+		/* #ifndef APP-PLUS */
+		display: inline-block;
+		/* #endif */
+		flex-wrap: nowrap;
+	}
+
+	.uni-tab-group {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+	}
+
+	.uni-tab-item-title {
+		width: 120rpx;
+		text-align: center;
+		color: #555;
+		font-size: 36rpx;
+		height: 80rpx;
+		line-height: 80rpx;
+		flex-wrap: nowrap;
+		/* #ifndef APP-PLUS */
+		white-space: nowrap;
+		/* #endif */
+	}
+
+	.border-img {
+		width: 112rpx;
+		height: 20rpx;
+	}
+
+	.uni-tab-item-title-active {
+		color: #e1b893;
+		font-size: 48rpx;
+		font-weight: 600;
+	}
+
+	.date-group {
+		flex-direction: row;
+		align-items: center;
+		padding-left: 24rpx;
+		padding-right: 24rpx;
+		margin-bottom: 10px;
+	}
+
+	.date {
+		font-size: 26rpx;
+		color: #999999;
+		width: 200rpx;
+	}
+
+	.date-line {
+		height: 1rpx;
+		background-color: #cccccc;
+		width: 500rpx;
+	}
+
+	.swiper-box {
+		flex: 1;
+	}
+
+	.swiper-item {
+		flex: 1;
+		flex-direction: row;
+	}
+
+	.scroll-v {
+		flex: 1;
+		/* #ifndef MP-ALIPAY */
+		flex-direction: column;
+		/* #endif */
+		width: 750rpx;
+	}
+
+	.update-tips {
+		position: absolute;
+		left: 0;
+		top: 41px;
+		right: 0;
+		padding-top: 5px;
+		padding-bottom: 5px;
+		background-color: #FDDD9B;
+		align-items: center;
+		justify-content: center;
+		text-align: center;
+	}
+
+	.update-tips-text {
+		font-size: 14px;
+		color: #ffffff;
+	}
+
+	.refresh {
+		width: 750rpx;
+		height: 64px;
+		justify-content: center;
+	}
+
+	.refresh-view {
+		flex-direction: row;
+		flex-wrap: nowrap;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.refresh-icon {
+		width: 30px;
+		height: 30px;
+		transition-duration: .5s;
+		transition-property: transform;
+		transform: rotate(0deg);
+		transform-origin: 15px 15px;
+	}
+
+	.refresh-icon-active {
+		transform: rotate(180deg);
+	}
+
+	.loading-icon {
+		width: 20px;
+		height: 20px;
+		margin-right: 5px;
+		color: #999999;
+	}
+
+	.loading-text {
+		margin-left: 2px;
+		font-size: 16px;
+		color: #999999;
+	}
+
+	.loading-more {
+		align-items: center;
+		justify-content: center;
+		padding-top: 10px;
+		padding-bottom: 10px;
+		text-align: center;
+	}
+
+	.loading-more-text {
+		font-size: 28rpx;
+		color: #999;
+	}
+
+	.status_bar {
+		height: var(--status-bar-height);
+		width: 100%;
+	}
+
+	.nav-title {
+		/* #ifdef APP-PLUS */
+		font-size: 34rpx !important;
+		/* #endif */
+		/* #ifndef APP-PLUS */
+		font-size: $uni-font-size-lg;
+		font-weight: 700;
+		/* #endif */
+
+	}
+
+	.slot-button {
+		/* #ifndef APP-NVUE */
+		display: flex;
+		/* #endif */
+		height: 345rpx;
+		flex-direction: row;
+		justify-content: center;
+		align-items: center;
+		padding: 0rpx 20px;
+		margin-top: 25rpx;
+		background-color: #ff5a5f;
+	}
+
+	.slot-button-text {
+		color: #ffffff;
+		font-size: 14px;
+	}
+
+	.nav-text {
+		color: #555555;
+		padding-left: 20rpx;
+	}
+</style>

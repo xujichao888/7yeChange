@@ -1,0 +1,321 @@
+<template>
+	<view class="gift-content">
+		<view class="select-send-person">
+			<text class="send-text">送给</text>
+			<scroll-view  class="upmic-render" :scroll-x="true" :show-scrollbar="false" >
+				<view class="father-box">
+					<view class="upmic-list-box" v-if="giftEnter=='clickBtn'">
+						<view 
+							v-for="(item,index) in renderArr" 
+							:key="index" class="upmic-list" 
+							:class="{selectActive:item.isSelect,Actives:item.idx==0 && masterSelect}"
+							@click="selectOne(item)"
+						>
+							<image class="img-avatar" :src="item.avatar" mode="aspectFill"></image>
+						</view>
+					</view>
+					<view class="upmic-list-box" v-else>
+						<view class="upmic-list" :class="{selectActive:EnterMsg.isSelect}">
+							<image @click="selectChangeEnter" class="img-avatar" :src="EnterMsg.avatar" mode="aspectFill"></image>
+						</view>
+						
+					</view>
+				</view>
+			</scroll-view>
+			<view class="btn" @click="selectAll" :class="{btnactive:isAllmic,optionsZero:giftEnter!='clickBtn'}" >
+				<text class="select-all-mic" :class="{optionsZeroText:giftEnter!='clickBtn'}">全麦</text>
+			</view>
+		</view>
+		<view class="gift-swiper-box" style="position: relative;">
+			<swiper  class="gift-swiper" :duration="500" @change="swiperGift">
+				<swiper-item class="gift-item" v-for="(item,index) in giftRender" :key="index">
+					<xu-giftBlock :idx='idx' :index="index"  :renderJson="i" v-for="(i,idx) in item" :key="idx" @clickCallBack="selectGift"/>
+				</swiper-item>
+			</swiper>
+			<view class="circle-box">
+				<view class="circle" v-for="(item,index) in 2" :class="{circleActive:index == circleCurror}"></view>
+			</view>
+		</view>
+		<view class="bottom-bar">
+			<view class="bottom-bar-left">
+				<image class="zuanshi-img" src="/static/icon/zuanshi.png" mode="widthFix"></image>
+				<text class="has-zuanshi">{{Money}}</text>
+				<text class="exchange" @click="popupExchange">兑换</text>
+			</view>
+			<view class="bottom-bar-right">
+				<view class="select-send-num" style="position: relative; " @click="toggle">
+					<text class="select-send-num-text">{{selectNum}}</text>
+					<image class="sanjiao" src="/static/icon/sanjiao.png" mode="widthFix" style="position: absolute; "></image>
+				</view>
+				<image class="send-img" src="/static/icon/sendGift.png" mode="widthFix" @click.stop="sendGift"></image>
+			</view>
+		</view>
+	
+	</view>
+</template>
+
+<script>
+	export default {
+		data() {
+			return {
+				isAllmic: false, //是不是全麦
+				circleCurror:0, //轮播的焦点
+				selectToggle:false ,//选择数量显隐
+				giftItem:null,
+			}
+		},
+		props: {
+			Money:Number,
+			renderArr:Array,
+			giftRender:{
+				type:Array,
+				default:[]
+			},
+			selectNum:Number,
+			giftEnter:String,
+			EnterMsg:{
+				type:Object,
+				default:{}
+			},
+			masterSelect:Boolean
+		},
+		methods: {
+			selectAll() { //全麦
+				if(this.giftEnter=='clickBtn'){
+					this.isAllmic = !this.isAllmic
+					this.$emit('allControl',this.isAllmic)
+				}
+			},
+			selectOne(item){ //选择一个人
+			
+				this.isAllmic =false
+				this.$emit('changeSelectState',item.idx);
+				
+			},
+			selectChangeEnter(){
+				this.$emit('changeEnterState')
+			},
+			swiperGift(e){
+				console.log(e)
+				this.circleCurror= e.detail.current
+			},
+			toggle(){
+				this.$emit('selectNum')
+			},
+			popupExchange(){
+				this.$emit('popupExchange')
+			},
+			selectGift(item){ //选择礼物
+				//console.log(item)
+				this.giftItem = item;
+				this.$emit('changeGiftActive',item);
+			},
+			sendGift(){ //发送礼物
+				let json ={
+					gift:this.giftItem,
+					num:this.selectNum
+				}
+				this.$emit('sendGiftFromCompo',json)
+			}
+		}
+	}
+</script>
+
+<style scoped>
+	.gift-content {
+		width: 750rpx;
+		height: 754rpx;
+		background-color: #021526;
+	}
+
+	.select-send-person {
+		width: 750rpx;
+		height: 150rpx;
+		padding: 0 28rpx;
+		flex-direction: row;
+		justify-content: space-between;
+		align-items: center;
+	}
+
+	.send-text {
+		color: #fff;
+		font-size: 24rpx;
+	}
+
+	.upmic-render {
+		width: 500rpx;
+		flex-direction: row;
+	}
+	.father-box{
+		width: 500rpx;
+		flex-direction: row;
+	}
+	.btn {
+		width: 105rpx;
+		height: 57rpx;
+		background-color: #520c2c;
+		border-width: 3rpx;
+		border-style: solid;
+		border-color: #f72585;
+		border-radius: 78rpx;
+		flex-direction: row;
+		justify-content: center;
+		align-items: center;
+	}
+
+	.select-all-mic {
+		color: #FFFFFF;
+		font-size: 24rpx;
+		line-height: 57rpx;
+	}
+
+	.btnactive {
+		border-color: #021526;
+		background-color: #F72585
+	}
+
+	.upmic-list-box {
+		flex-direction: row;
+		align-items: center;
+	}
+
+	.upmic-list {
+		width: 60rpx;
+		height: 60rpx;
+		margin: 0 5rpx;
+		background-color: #021526;
+		flex-direction: row;
+		justify-content: center;
+		align-items: center;
+		border-radius: 100rpx;
+	}
+
+	.img-avatar {
+		width: 54rpx;
+		height: 54rpx;
+		border-radius: 60rpx;
+	}
+	.selectActive{
+		background-color: #F72585
+	}
+	.Actives{
+		background-color: #F72585
+	}
+	.gift-swiper-box{
+		width: 750rpx;
+		height: 500rpx;
+	}
+	.gift-swiper{
+		width: 750rpx;
+		height: 420rpx;
+	}
+	.gift-item{
+		width: 750rpx;
+		height: 420rpx;
+		padding:0 28rpx;
+		flex-direction: row;
+		flex-wrap: wrap;
+		justify-content: space-between;
+	}
+	.circle-box{
+		height: 80rpx;
+		flex-direction: row;
+		justify-content: center;
+		align-items: center;
+	}
+	.circle{
+		width: 20rpx;
+		height: 20rpx;
+		background-color: rgba(255,255,255,0.3);
+		margin-right: 10rpx;
+		border-radius: 100rpx;
+	}
+	.circleActive{
+		background-color:rgba(255,255,255,1)
+	}
+	.bottom-bar{
+		width: 750rpx;
+		height: 100rpx;
+		flex-direction: row;
+	}
+	.bottom-bar-left{
+		padding-left: 20rpx;
+		width: 375rpx;
+		height: 100rpx;
+
+		flex-direction: row;
+		align-items: center;
+	}
+	.bottom-bar-right{
+		padding-right: 20rpx;
+		width: 375rpx;
+		height: 100rpx;
+		flex-direction: row;
+		align-items: center;
+		justify-content: flex-end;
+		
+	}
+	.zuanshi-img{
+		width: 40rpx;
+		margin-right: 10rpx;
+	}
+	.has-zuanshi{
+		color: #B77900;
+		font-size: 46rpx;
+		line-height: 100rpx;
+		margin-right: 10rpx;
+	}
+	.exchange{
+		color: #7060DC;
+		font-size: 32rpx;
+		line-height: 100rpx;
+	}
+	.send-img{
+		width: 140rpx;
+	}
+	.select-send-num{
+		width: 110rpx;
+		height: 60rpx;
+		border-width: 3rpx ;
+		border-style: solid;
+		border-color: #7060DC;
+		border-radius: 30px;
+		flex-direction: row;
+		align-items: center;
+		margin-right: 10rpx;
+	}
+	.select-send-num-text{
+		font-size: 30rpx;
+		color: #FFFFFF;
+		line-height: 60rpx;
+		text-align: center;
+		margin-left: 10rpx;
+	}
+	.sanjiao{
+		width: 20rpx;
+		top: 20rpx;
+		right: 10rpx;
+	}
+	.show-hide-select{
+		width: 108rpx;
+		height: 260rpx;
+		border-left-width: 3rpx;
+		border-right-width: 3rpx;
+		border-top-width: 3rpx;
+		border-style: solid;
+		border-color: #7060DC;
+		background-color: #021526;
+		bottom: 20rpx;
+		border-top-left-radius: 30rpx;
+		border-top-right-radius: 30rpx;
+		flex-direction: column;
+		align-items: center;
+	}
+	.optionsZero{
+		background-color: rgba(0,0,0,0);
+			border-color: #021526;
+	}
+	.optionsZeroText{
+		color: rgba(0,0,0,0);
+	}
+</style>

@@ -1,0 +1,154 @@
+<template>
+	<view class="talk-one-peer-list" @click="clickCallback">
+		
+		<view class="avatar">
+			<image  class="avatar-img" :src="isSystemMsg?renderJson.image:renderJson.avatar" mode="aspectFill"></image>
+		</view>
+		<view class="nickname-content">
+			<text class="nickname">{{isSystemMsg?renderJson.title:renderJson.nickname}}</text>
+			<text class="content">{{isSystemMsg?renderJson.content:renderJson.content}}</text>
+		</view>
+		<view class="time-notRead">
+			<text class="time">{{isSystemMsg?exchangeTime:exchange(renderJson.time)}}</text>
+			<text class="red-circle" v-if="renderJson.notReadNum">{{isSystemMsg?'':renderJson.notReadNum>99?'...':renderJson.notReadNum}}</text>
+		</view>
+	</view>
+</template>
+
+<script>
+	//
+	import exchangeTime from '@/static/publicJs/exchangeTime.js'
+	export default {
+		props:{
+			renderJson:{
+				type:Object,
+				default:{
+					avatar:'',
+					nickname:'',
+					content:'',
+					time:''
+				}
+			},
+			isSystemMsg:Boolean
+		
+		},
+		computed:{
+			exchangeTime(){
+				if(this.isSystemMsg){
+					function change(t) {
+						if (t < 10) {
+							return "0" + t;
+						} else {
+							return t;
+						}
+					}
+					// "2020-12-28 08:45:05"
+					if(!this.renderJson.addtime){return false}
+					let str = this.renderJson.addtime
+					let arr = str.split(' ')
+					let arr2=  arr[0].split('-')
+					let arr3 = arr[1].split(':')
+					let now = new Date()
+					let Y = now.getFullYear();
+					let M = (now.getMonth() + 1 < 10 ? '0' + (now.getMonth() + 1) : now.getMonth() + 1);
+					let D = change(now.getDate())
+					if (Y == arr2[0] && M == arr2[1] && D == arr2[2]) {
+						return '今天' + ' ' + arr3[0] + arr3[1]
+					}
+					return  arr2[1]+ '月 ' + arr2[2] + ' 日';
+				}
+			}
+		},
+		methods:{
+			exchange(val){
+				return exchangeTime(val)
+			},
+			clickCallback(){
+				this.$emit('clickCallback',this.renderJson)
+			}
+			
+		}
+	}
+</script>
+
+<style scoped>
+	.talk-one-peer-list{
+		width: 750rpx;
+		height: 136rpx;
+		padding: 0 20rpx;
+		border-bottom-width: 3rpx;
+		border-bottom-color: #082036;
+		background-color: #021526;
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+	}
+	.avatar{
+		width: 136rpx;
+		height: 136rpx;
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+	}
+	.avatar-img{
+		width: 100rpx;
+		height: 100rpx;
+		border-radius: 100rpx;
+	}
+	.nickname-content{
+		width: 424rpx;
+		height: 136rpx;
+		justify-content: center;
+		lines: 1;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		/* #ifndef APP-PLUS */
+		white-space: nowrap;
+		/* #endif */
+		/* #ifdef APP-PLUS */
+		text-overflow: ellipsis;
+		/* #endif */
+	}
+	.content{
+		width: 400rpx;
+		color: #FFFFFF;
+		font-size: 28rpx;
+		lines: 1;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		/* #ifndef APP-PLUS */
+		white-space: nowrap;
+		/* #endif */
+		/* #ifdef APP-PLUS */
+		text-overflow: ellipsis;
+		/* #endif */
+	}
+	.nickname{
+		font-size: 32rpx;
+		color: #FFFFFF;
+		margin-bottom: 10rpx;
+	}
+	.time-notRead{
+		width: 150rpx;
+		height: 136rpx;
+		align-items: flex-end;
+	}
+	.red-circle{
+		margin-top: 10rpx;
+		width: 40rpx;
+		height: 40rpx;
+		line-height: 40rpx;
+		text-align: center;
+		color: #FFFFFF;
+		font-size: 22rpx;
+		border-radius: 40rpx;
+		background-color: #E14343;
+		
+	}
+	.time{
+		font-size: 22rpx;
+		color: #B8B8B8;
+		margin-top: 20rpx;
+		margin-bottom: 10rpx;
+	}
+</style>

@@ -1,0 +1,141 @@
+<template>
+	<!-- #ifdef APP-NVUE -->
+	<list class="scroll-v list" enableBackToTop="true" scroll-y loadmoreoffset="15">
+		<cell>
+			<view v-for="(msg, userid) in user_list" :key="msg.id" @longpress="delUser(msg.id)" @click="toChat({msg:message_list[msg.id], userid:msg.id})">
+				<message-cell :options="message_list[msg.id]" :badge="userBadge[msg.id]"></message-cell>
+			</view>
+		</cell>
+	</list>
+	<!-- #endif -->
+	<!-- #ifndef APP-NVUE -->
+	<scroll-view class="scroll-v list" enableBackToTop="true" scroll-y>
+		<view v-for="(msg, userid) in message_list" :key="userid" @click="toChat({msg:msg, userid:userid})">
+			<message-cell :options="msg" :badge="userBadge[userid]"></message-cell>
+		</view>
+	</scroll-view>
+	<!-- #endif -->
+</template>
+
+<script>
+	import uniSwipeAction from '@/components/uni-swipe-action/uni-swipe-action.vue'
+	import uniSwipeActionItem from '@/components/uni-swipe-action-item/uni-swipe-action-item.vue'
+	import {
+		mapGetters,
+		mapMutations
+	} from 'vuex'
+	import messageCell from '@/components/message-cell/cell.nvue';
+	export default {
+		components: {
+			messageCell,
+			uniSwipeAction,
+			uniSwipeActionItem
+		},
+		computed: {
+			...mapGetters([
+				"message_list",
+				"badges",
+				"chatViewIsTabbar"
+			]),
+			user_list(){
+				let arr = []
+				for(let attr in this.message_list){
+					let msg = this.message_list[attr].message
+					let date = ""
+					if(msg.length){
+						date = msg[msg.length-1].date
+					}
+					arr.push({id:attr, date})
+				}
+				return arr.sort(this.sortBy("date", false))
+			}
+		},
+		watch: {
+			badges: {
+				handler(newVal, oldVal) {
+					this.userBadge = newVal
+				},
+				deep: true,
+				immediate: true
+			}
+		},
+		data() {
+			return {
+				userBadge: []
+			}
+		},
+		methods: {
+			...mapMutations([
+				'setCurrentUser',
+				"updateReadState",
+				"deleUserMess"
+			]),
+			toChat({
+				msg,
+				userid
+			}) {
+				this.setCurrentUser(msg)
+				if(this.chatViewIsTabbar){
+					uni.switchTab({
+						url: `/pages/chat-view/chat-view`
+					})
+				} else {
+					uni.navigateTo({
+						url: `/pages/chat-view/chat-view`
+					})
+				}
+			},
+			delUser(userid) {
+				uni.showModal({
+				    title: '提示',
+				    content: '确定要删该除聊天吗？',
+				    success: (res) => {
+				        if (res.confirm) {
+				            this.deleUserMess(userid)
+				        } 
+				    }
+				});
+				
+			},
+			sortBy(attr,rev){
+			    //第二个参数没有传递 默认升序排列
+			    if(rev == undefined){
+			      rev = 1;
+			    }else{
+			      rev = (rev) ? 1 : -1;
+			    }
+			     
+			    return function(a,b){
+			      a = a[attr];
+			      b = b[attr];
+			      if(a < b){
+			        return rev * -1;
+			      }
+			      if(a > b){
+			        return rev * 1;
+			      }
+			      return 0;
+			    }
+			  },
+		}
+	}
+</script>
+
+<style scoped>
+	.slot-button {
+		/* #ifndef APP-NVUE */
+		display: flex;
+		/* #endif */
+		height: 146rpx;
+		flex-direction: row;
+		justify-content: center;
+		align-items: center;
+		padding: 0rpx 20px;
+		background-color: #ff5a5f;
+	}
+
+	.slot-button-text {
+		color: #ffffff;
+		font-size: 14px;
+	}
+</style>

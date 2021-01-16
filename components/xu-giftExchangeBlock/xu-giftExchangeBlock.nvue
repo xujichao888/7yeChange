@@ -1,0 +1,52 @@
+<template>
+	<view class="block" :class="{blockActive:isArctive}" @click="select">
+		<text class="how-many" :class="{howmanyActive:isArctive}">{{exchangeMoney}}钻</text>
+		<text class="pay-for">{{payFor}}豆豆</text>
+	</view>
+</template>
+
+<script>
+	export default {
+		props:{
+			exchangeMoney:Number,
+			payFor:Number,
+			isArctive:{
+				type:Boolean,
+				default:false
+			},
+			idx:Number
+		},
+		methods:{
+			select(){
+				console.log(this.idx)
+				this.$emit('funCallBack',this.idx)
+			}
+		}
+	}
+</script>
+
+<style scoped>
+	.block{
+		width: 202rpx;
+		height: 124rpx;
+		background-color: #13283B;
+		align-items: center;
+		justify-content: center;
+		border-radius: 10rpx;
+		margin-bottom: 30rpx;
+	}
+	.how-many{
+		font-size: 32rpx;
+		color: #EE9B00;
+	}
+	.pay-for{
+		font-size: 26rpx;
+		color: #FFFFFF;
+	}
+	.howmanyActive{
+		color: #FFFFFF;
+	}
+	.blockActive{
+		background-color:#7060DC;
+	}
+</style>

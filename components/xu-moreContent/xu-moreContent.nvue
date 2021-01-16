@@ -1,0 +1,41 @@
+<template>
+	<view class="more-content">
+		<xu-moreBtn 
+			v-for="(item,index) in arr" 
+			:imageUrl="item.url" 
+			:text="item.text" 
+			:key="item.id"
+			:type="item.type"
+			@clickcallBack="clickHandle"
+		/>
+	</view>
+</template>
+
+<script>
+	export default {
+		data(){
+			return{
+				arr:[
+					{id:'a1', text:'举报房间',url:'/static/icon/hitRoom.png',type:'hit'},
+					{id:'a2',text:'退出房间',url:'/static/icon/goout.png',type:'back'}
+				]
+			}
+		},
+		methods:{
+			clickHandle(type){ //控制点击
+				this.$emit('leaveRoomOrhitRoom',type)
+			}
+		}
+	}
+</script>
+
+<style scoped>
+	.more-content{
+		width: 750rpx;
+		height:240rpx;
+		background-color:#021526;
+		flex-direction: row;
+		align-items: center;
+		padding-left: 50rpx;
+	}
+</style>

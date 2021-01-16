@@ -1,0 +1,41 @@
+<template>
+	<view class="bottombarCircle" @click="clickHandle">
+		<image v-if="toggleBoolean" class="imgs" :src="iconUrl" mode="widthFix"></image>
+		<image v-if="!toggleBoolean && toggleImgUrl" class="imgs" :src="toggleImgUrl" mode="widthFix"></image>
+	</view>
+</template>
+
+<script>
+	export default {
+		props:{
+			iconUrl:String,
+			toggleImgUrl:String,
+			rtcAndRtm:Object,
+			toggleBoolean:{
+				type:Boolean,
+				default:true
+			}
+		},
+		watch:{
+			rtcAndRtm(newV,oldV){
+				console.log(newV,oldV)
+			}
+		},
+		methods:{
+			clickHandle(){
+
+				this.$emit('bottomCircleIconCallBack')
+			}
+		}
+	}
+</script>
+
+<style scoped>
+	.bottombarCircle{
+		width:74rpx ;
+		height: 74rpx;
+	}
+	.imgs{
+		width: 74rpx;
+	}
+</style>

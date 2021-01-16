@@ -1,0 +1,127 @@
+<template>
+	<view class="box" style="position: relative;" @click="handleClick">
+		<text v-if="!renderJson.islock" class="seat-num" style="position: absolute;">{{isMaster?'':idx+1}}</text>
+		<image v-if="renderJson.islock" style="position: absolute; left:50%;  top: 50%; width: 35rpx; height: 47rpx;margin-top: 23.5rpx;" src="/static/icon/lock.png" mode="widthFix"></image>
+		<image v-if="renderJson.avatar" class="avatar"  :src="renderJson.avatar" mode="aspectFill"></image>
+		<image v-if="!renderJson.avatar" class="kongwei" src="/static/icon/kongwei.png" mode="widthFix"></image>
+		<text v-if="!renderJson.id && isMaster" class="master-text">房主</text>
+		<text v-if="renderJson.nickname" class="master-text">{{renderJson.nickname}}</text>
+		<view class="sex-income" v-if="renderJson.id">
+			<image class="sex-icon" v-if="renderJson.sex==1" src="/static/icon/lanxin.png" mode="widthFix"></image>
+			<image class="sex-icon" v-else src="/static/icon/fenxin@3x.png" mode="widthFix"></image>
+			<text class="income-num">{{renderJson.income?renderJson.income:0}}</text>
+		</view>
+		<view class="mic-state" v-if="renderJson.id" :class="{masterMic:ture}" style="position: absolute; left: 70rpx; top: 70rpx;">
+			<image class="mic-icon" v-if="renderJson.micState===2" src="/static/icon/closeMic.png" mode="widthFix"></image>
+			<image class="mic-icon" v-if="renderJson.micState===1" src="/static/icon/openMic.png" mode="widthFix"></image>
+		</view>
+		
+	</view>
+</template>
+
+<script>
+	export default {
+		props:{
+			idx:Number,//座位的号码
+			seatIsDown:Boolean,//座位有没有人
+			isMaster:{//是不是房主
+				type:Boolean,
+				default:false
+			},
+			renderJson:{//渲染的数据
+				type:Object,
+				default:{
+					id:false,
+					avatar:'',
+					nickname:'',
+					income:0,
+					micState:1,
+					islock:false
+				}
+			},
+			seat:String
+		},
+		data(){
+			return{
+			
+			}
+		},
+		methods:{
+			handleClick(){
+			
+				this.$emit('handleClick',{jsons:this.renderJson,seat:this.seat})
+				
+			}
+		}
+	
+	}
+</script>
+
+<style scoped>
+	.box{
+		width:110rpx;
+		height: 194rpx;
+		align-items: center;
+		margin-bottom: 40rpx;
+	}
+	.kongwei{
+		width: 110rpx;
+		height: 110rpx;
+	}
+	.master-text{
+		color: #FFFFFF;
+		font-size: 24rpx;
+		margin-top: 10rpx;
+		text-align: center;
+	}
+
+	.sex-icon{
+		width: 16rpx;
+		height: 16rpx;
+	}
+	.income-num{
+		color: #FFFFFF;
+		font-size: 24rpx;
+		margin-left: 10rpx;
+	}
+	.avatar{
+		width: 107rpx;
+		height: 107rpx;
+		border-radius: 132rpx;
+		border-width: 3rpx;
+		border-style: solid;
+		border-color: #7060dc;
+	}
+	.mic-state{
+		width: 40rpx;
+		height: 40rpx;
+	}
+	.mic-icon{
+		width: 40rpx;
+		height: 40rpx;
+	}
+	.masterMic{
+		position: fixed;
+		top: 260rpx;
+		left: 410rpx;
+	}
+	.sex-income{
+		margin-top: 5rpx;
+		background-color: rgba(255,255,255,0.2);
+		border-radius: 45rpx;
+		flex-direction: row;
+		align-items: center;
+		padding:5rpx;
+	}
+	.seat-num{
+		color: #FFFFFF;
+		font-size: 28rpx;
+		width: 110rpx;
+		height: 110rpx;
+		text-align: center;
+		line-height: 110rpx;
+	}
+	.lockclass{
+		width: 80rpx;
+	}
+</style>

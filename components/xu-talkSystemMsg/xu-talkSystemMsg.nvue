@@ -1,0 +1,114 @@
+<template>
+	<view class="systemMsg-container">
+		<xu-popuptitle text="系统消息" :hasBackIcon='true' @backCallback="backTolist"/>
+		<list class="systemMsg-content">
+			<cell>
+			  <view class="list" v-for=" (item,index) in SystemRenderArr" :key="index">
+				 <text class="time">{{exchangeTime(item.addtime)}}</text>
+				 <view class="blocks">
+				 	<view class="top">
+				 		<text class="title">{{item.title}}</text>
+						<text class="checkALl">{{item.content}}</text>
+				 	</view>
+					<view class="bottom">
+						<text class="checkALl">查看详情</text>
+						<image class="rightway" src="/static/icon/rightWay.png" mode="widthFix"></image>
+					</view>
+				 </view>
+			  </view>
+			</cell>
+		</list>
+	</view>
+</template>
+
+<script>
+	export default {
+		props:{
+			SystemRenderArr:{
+				type:Array,
+				default:[]
+			}
+		},
+		methods:{
+			backTolist(){
+				this.$emit('closeSystemMsg')
+			},
+			exchangeTime(msg){
+				if(msg){
+					function change(t) {
+						if (t < 10) {
+							return "0" + t;
+						} else {
+							return t;
+						}
+					}
+					// "2020-12-28 08:45:05"
+					console.log('唉我去',msg)
+					let str = msg
+					let arr = str.split(' ')
+					let arr2=  arr[0].split('-')
+					let arr3 = arr[1].split(':')
+					let now = new Date()
+					let Y = now.getFullYear();
+					let M = (now.getMonth() + 1 < 10 ? '0' + (now.getMonth() + 1) : now.getMonth() + 1);
+					let D = change(now.getDate())
+					if (Y == arr2[0] && M == arr2[1] && D == arr2[2]) {
+						return '今天' + ' ' + arr3[0] + arr3[1]
+					}
+					return  arr2[1]+ '月 ' + arr2[2] + ' 日';
+				}
+			}
+		}
+	}
+</script>
+
+<style scoped>
+	.systemMsg-content{
+		width: 750rpx;
+		height: 668rpx;
+		padding: 0 38rpx;
+	}
+	
+	.time{
+		width: 678rpx;
+		height: 80rpx;
+		color: #7060DC;
+		font-size: 28rpx;
+		text-align: center;
+		line-height: 80rpx;
+	}
+	.blocks{
+		width: 678rpx;
+		height: 250rpx;
+		background-color: #7060DC;
+		border-radius: 20rpx;
+	}
+	.top{
+		width: 678rpx;
+		height: 170rpx;
+		flex-direction: column;
+		padding: 0 20rpx;
+		justify-content: space-around;
+	}
+	.bottom{
+		width: 678rpx;
+		height: 80rpx;
+		padding: 0 20rpx;
+		border-top-width: 3rpx;
+		border-top-color: rgba(255,255,255,0.2);
+		flex-direction: row;
+		justify-content: space-between;
+		align-items: center;
+	}
+	.rightway{
+		width: 16rpx;
+	}
+	.checkALl{
+		color: #FFFFFF;
+		font-size: 30rpx;
+	}
+	.title{
+		color: #EE9B00;
+		font-size: 34rpx;
+	}
+</style>

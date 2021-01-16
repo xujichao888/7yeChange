@@ -1,0 +1,35 @@
+<template>
+	<view class="public-box">
+		  <list class="list-box">
+		    <!-- 注意事项: 不能使用 index 作为 key 的唯一标识 -->
+		    <cell class="cells">
+				<d-text size="36" :text="text" color-custom="#fff"></d-text>
+		    </cell>
+		  </list>
+		
+	</view>
+</template>
+
+<script>
+	export default {
+		props:{
+			text:String
+		}
+	}
+</script>
+
+<style scoped>
+	.public-box{
+		width: 750rpx;
+		height: 656rpx;
+		background-color: #021526;
+	}
+	.list-box{
+		padding: 20rpx 20rpx;
+		width: 750rpx;
+		height: 656rpx;
+	}
+	.cells{
+		padding: 20rpx;
+	}
+</style>

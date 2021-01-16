@@ -1,0 +1,154 @@
+<template>
+	<view class="talkone-peer-content">
+		<view class="peerList-box" v-if="!talkPageIsShow && !SystemPageIsShow">
+			<xu-popuptitle text="消息" />
+			<xu-talkonePeerList :renderJson="SystemMsg[SystemMsg.length-1]" :isSystemMsg="true" @clickCallback='gotoSystemMsgPage'/>
+			<list class="listsss">
+				<cell>
+					<xu-talkonePeerList
+						v-for="(item,key,index) in talklist" 
+						:key="key" 
+						:renderJson="item" 
+						@clickCallback="gotoTalkPage"
+					/>
+				</cell>
+			<!-- 	<cell style="width: 200rpx; height: 100rpx; background-color: #F2AB64;" @click="clears">
+					清除
+				</cell> -->
+			</list>
+		</view>
+		<view class="talk-one-container" v-if="talkPageIsShow">
+			<xu-talkonePage ref='talkPage' 
+			:avatar="avatar" 
+			:nickName="talkUsernickname" 
+			:uid="talkUsernickId" 
+			@backList="handleBack"
+			@sendMsg="sendmsg"/>
+		</view>
+		<!-- 系统消息 -->
+		<xu-talkSystemMsg :SystemRenderArr ="SystemMsg" v-if="SystemPageIsShow" @closeSystemMsg="gotoSystemMsgPage"/>
+	</view>
+</template>
+
+<script>
+	import {
+		ReqWebApi
+	} from '@/static/publicJs/requestFun.js';
+	import {
+		getToken
+	} from '@/static/publicJs/token.js';
+	import {
+		getSystemMsg
+	} from '@/static/publicJs/requestPath.js'
+	export default {
+		data(){
+			return{
+				SystemMsg:[],//系统消息的渲染数组，
+				talkPageIsShow:false,//控制聊天页面显示,
+				talkUsernickname:'',//聊天的用户名
+				talkUsernickId:'',//聊天的uid
+				avatar:'',//自己的头像
+				SystemPageIsShow:false,//系统消息页是否显示
+
+			}
+		},
+		props:{
+			clickType:String,
+			TalkOneMsgByUserMsg:{
+				type:Object,
+				default:{}
+			},
+			notReadNum:Number
+		},
+		computed:{
+			talklist(){
+				return this.$store.state.talkOnePeerRenderArr
+			}
+		},
+		mounted() {
+			this.getSystemMsg()
+			if(this.clickType == 'userMsg'){
+				let {id,nickname,avatar}=this.TalkOneMsgByUserMsg;
+				this.talkUsernickname= nickname;
+				this.talkUsernickId =id;
+				this.avatar = avatar
+				this.talkPageIsShow = true;
+			}
+			this.getStorageList()
+		},
+		watch:{
+			talkPageIsShow(newV){
+				this.getStorageList()
+			}
+		},
+		methods:{ //获得系统消息
+			getStorageList(){
+				let ownid = this.$store.state.userMsg.id
+				let Liststorage = uni.getStorageSync('talkList')
+				console.log(Liststorage)
+				if(Liststorage && Liststorage[ownid]){
+					this.$set(this.$store.state,'talkOnePeerRenderArr',Liststorage[ownid])
+					console.log('monted或者回来的时候',this.$store.state.talkOnePeerRenderArr)
+				}
+			},
+			clears(){
+				console.log('删除了')
+				uni.clearStorageSync('takeContent');
+				uni.clearStorageSync('talkList');
+			},
+			async getSystemMsg(){
+				let result = await ReqWebApi(getSystemMsg+'?msgid=0&rows=20','GET','',getToken(this),this,'getSystemMsg','',true)
+				if(result.data.code == 0){
+					this.SystemMsg=this.SystemMsg.concat(result.data.data);
+					console.log('系统消息',this.SystemMsg)
+				}
+				//系统消息没有字段
+			},
+			gotoTalkPage(item){ //进入到聊天页面
+				let ownid = this.$store.state.userMsg.id
+				console.log('传入的数据是否正确',item)
+				let {from,id,nickname,avatar} = item;
+				this.talkUsernickname = nickname
+				this.talkUsernickId = from?from:id;
+				this.avatar = avatar
+				this.talkPageIsShow = true;
+				let getUserLastMsg = uni.getStorageSync('talkList');
+				getUserLastMsg[ownid][from+''].notReadNum= 0;
+				uni.setStorageSync('talkList',getUserLastMsg)
+				console.log('进入聊天页面之前的数据是否正确',uni.getStorageSync('talkList'))
+			},
+			handleBack(){
+				this.talkPageIsShow = false
+				this.talkUsernickname = ''
+				this.talkUsernickId = ''
+				this.avatar = ''
+			},
+			sendmsg(item){
+				console.log(456)
+				this.$emit('sendMsg',item)
+			},
+			gotoSystemMsgPage(){ //打开系统消息
+				this.SystemPageIsShow=!this.SystemPageIsShow
+			}
+		}
+	}
+</script>
+
+<style>
+	.talkone-peer-content{
+		width: 750rpx;
+		height: 750rpx;
+		background-color: #021526;
+		border-top-left-radius:38rpx;
+		border-top-right-radius:38rpx;
+	}
+	.systemMsg{
+		width: 750rpx;
+		height: 136rpx;
+		background-color:#00DCDF;
+	}
+	.listsss{
+		width: 750rpx;
+		height: 526rpx;
+	}
+</style>

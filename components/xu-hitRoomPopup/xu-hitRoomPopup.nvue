@@ -1,0 +1,105 @@
+<template>
+	<view class="hit-room" style="position: relative;">
+		<textarea 
+			class="textareas" 
+			rows="10" 
+			confirm-type="done" 
+			placeholder="举报内容...." 
+			placeholder-style="font-size:14rpx"
+			v-model="content"
+			></textarea>
+		<text class="make-sure-hit" @click="sendRequest">确认举报</text>
+	</view>
+</template>
+
+<script>
+	import {
+		hitRoomPath
+	} from '@/static/publicJs/requestPath.js'
+	import {
+		ReqWebApi
+	} from '@/static/publicJs/requestFun.js';
+	import {
+		getToken,
+		refreshToken
+	} from '@/static/publicJs/token.js';
+	export default {
+		data(){
+			return{
+				content:''
+			}
+		},
+		props:{
+			roomid:String,
+			hitId:String,
+		},
+		methods:{
+			async sendRequest(){
+				if(!this.content){
+					uni.showToast({
+						title:'举报的内容是空的',
+						icon:'none'
+					})
+				}
+				//	url,methods,data,token,vm,FunName,agu,userRefresh
+				let result = await ReqWebApi(hitRoomPath,"POST",{
+					  "content": this.content,
+					  "image": "string",
+					  "roomid": "string",
+					  "userid": 0
+					},getToken(this),this,'sendRequest','',true)
+		
+				if(result.data.code==0){
+					uni.showToast({
+						title:'举报成功',
+						icon:'none'
+					})
+					this.$emit('hitRoomSuccess')
+				}
+			},
+			hideKey(){
+				uni.hideKeyboard()
+			}
+		}
+	}
+</script>
+
+<style scoped>
+	.hit-room{
+		width: 750rpx;
+		height: 750rpx;
+		background-color: #021526;
+		flex-direction: column;
+		
+		align-items: center;
+	}
+	.textareas{
+		color: #FFFFFF;
+		font-size: 28rpx;
+		margin-top: 30rpx;
+		width: 690rpx;
+		height: 300rpx;
+		border-color: #005B5C;
+		border-radius: 30rpx;
+		border-width: 3rpx;
+		border-style: solid;
+		padding: 10rpx;
+	}
+	.make-sure-hit{
+		width: 690rpx;
+		height: 100rpx;
+		position: fixed;
+		background-color: #062525;
+		border-color: #005B5C;
+		border-radius: 30rpx;
+		border-width: 3rpx;
+		border-style: solid;
+		bottom: 30rpx;
+		left: 0;
+		color: #FFFFFF;
+		text-align: center;
+		line-height: 100rpx;
+		margin-left: 30rpx;
+		font-size: 28rpx;
+	}
+</style>

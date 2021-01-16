@@ -1,0 +1,149 @@
+<template>
+	<view class="marster-handle" :class="{twooption:renderArr.length<3,oneOption:renderArr.length<2}" style="position: relative;">
+		<view class="box">
+			<text class="list"
+			 :class="{listLast:index==renderArr.length-1,firstBlock:index==0}"
+			  v-for="(item,index) in renderArr" 
+			  @click="handleClicks(item)"
+			  :key="index">{{item.text}}</text>
+		</view>
+		<text @click="cancel" class="cancels" style="position: absolute;">取消</text>
+	</view>
+</template>
+
+<script>
+	export default {
+		data(){
+			return{
+				renderArr:[],
+				allTextArr:[
+					{
+						type:0,
+						text:'抱TA下麦'
+					},
+					{
+						type:1,
+						text:'抱TA上麦'
+					},
+					{
+						type:2,
+						text:'查看消息'
+					},
+					{
+						type:3,
+						text:'禁言'
+					},
+					{
+						type:4,
+						text:'取消禁言'
+					},
+					{
+						type:5,
+						text:'锁麦'
+					},
+					{
+						type:6,
+						text:'取消锁麦'
+					}
+				]
+				
+			}
+		},
+		mounted() { //判断点击用户的状态
+			
+			console.log('房主弹出层',this.handleJson)
+			if(this.handleJson.jsons){
+				if(this.handleJson.jsons.voice == 2){ //用户自己禁用麦克风房主此时没有禁麦的选项  1.抱他下麦 2.取消  3.查看用户消息
+					this.renderArr.push(this.allTextArr[0])
+					this.renderArr.push(this.allTextArr[2])
+				}else if(this.handleJson.jsons.voice==1){ //房主禁用了该用户的麦克风 此时应该是解禁 1。抱他下麦 3.查看用户消息  ,2.取消禁言 3.取消
+					console.log('房主禁了麦克风')
+					this.renderArr.push(this.allTextArr[0])
+					this.renderArr.push(this.allTextArr[2])
+					this.renderArr.push(this.allTextArr[4])
+				}else{
+					console.log('谁也没劲麦克风')  //1。抱他下麦 ,2.禁言 3.取消 .查看用户消息 
+					this.renderArr.push(this.allTextArr[0])
+					this.renderArr.push(this.allTextArr[2])
+					this.renderArr.push(this.allTextArr[3])
+				}
+			}else{ //点了没有人的座位 判断锁没锁    1。锁麦或取消锁麦 ,2.取消禁言 3.取消
+				console.log('没有人')
+				console.log(this.handleJson)
+				let {islock} = this.handleJson;
+				if(islock){
+					this.renderArr.push(this.allTextArr[6])
+				}else{
+					this.renderArr.push(this.allTextArr[1])
+					this.renderArr.push(this.allTextArr[5])
+				}
+				
+			}
+
+			
+		},
+		methods:{
+			handleClicks(item){
+				//console.log(item)
+				let json = {}
+				json.items = item;
+				json.id = this.handleJson.jsons?this.handleJson.jsons.id:-1;
+				if( this.handleJson.seat){
+					json.seats = this.handleJson.seat
+				}
+				this.$emit('handleMasterOptions',json)
+			},
+			cancel(){
+				this.$emit('cancel')
+			}
+		},
+		props:{
+			handleJson:Object
+		}
+	}
+</script>
+
+<style scoped>
+	.marster-handle{
+		width: 750rpx;
+		height: 430rpx;
+	}
+	.twooption{
+		height: 310rpx;
+	}
+	.oneOption{
+		height: 210rpx;
+	}
+	.box{
+		border-radius: 38rpx;
+	}
+	.list{
+		width: 750rpx;
+		height: 100rpx;
+		background-color: #05192B;
+		color: #FFFFFF;
+		text-align: center;
+		line-height: 100rpx;
+		border-bottom-color: #082036;
+		border-bottom-width: 3rpx;
+	}
+	.listLast{
+		border-bottom-width:0;
+		border-bottom-left-radius: 38rpx;
+		border-bottom-right-radius: 38rpx;
+	}
+	.firstBlock{
+		border-top-left-radius: 38rpx;
+		border-top-right-radius: 38rpx;
+	}
+	.cancels{
+		width: 750rpx;
+		height: 100rpx;
+		border-radius: 38rpx;
+		background-color:#05192B ;
+		bottom: 0;
+		color: #FFFFFF;
+		text-align: center;
+		line-height: 100rpx;
+	}
+</style>

@@ -1,0 +1,207 @@
+<template>
+	<view class="feed-item" :style="{marginTop:index ==0 ? '10px':'0px'}">
+		<text class="date">{{options.time}}</text>
+		<view class="line-group">
+			<!-- #ifdef APP-NVUE -->
+			<view class="t-line" :class="{'t-line-none':index == 0}"></view>
+			<!-- #endif -->
+			<view class="dot"></view>
+			<view class="line" :class="{'b-line-none':islast}"></view>
+		</view>
+		<view class="content">
+			<text v-if="options.content" class="title">{{options.content}}</text>
+			<view class="img-group" v-if="options.feedbackAlbum && options.feedbackAlbum.length">
+				<image @click="previewImage(options.feedbackAlbum,index)" mode="aspectFill" class="img" v-for="(item, index) in options.feedbackAlbum" :key="item.image" :src="item.image"></image>
+			</view>
+			<view class="footer">
+				<view class="admire-group" @click="admireHandel">
+					<image v-if="options.isAdmire" class="icon" src="/static/icons/index/admire.png"></image>
+					<image v-else class="icon" src="/static/icons/index/no-admire.png"></image>
+					<text v-if="options.counts > 0" class="admire-num num">{{options.counts}}</text>
+				</view>
+				<view class="comment-group" @click="toInfo">
+					<image class="comment-icon icon" src="/static/icons/index/msg.png"></image>
+					<text v-if="options.feeCommentLen > 0" class="admire-num num">{{options.feeCommentLen}}</text>
+				</view>
+			</view>
+		</view>
+	</view>
+</template>
+
+<script>
+	import {
+		mapGetters,
+		mapMutations
+	} from 'vuex'
+	import {
+		admire_check
+	} from "@/common/http.nvue.api.js"
+	export default {
+		props: {
+			options: {
+				type: Object,
+				default: function(e) {
+					return {}
+				}
+			},
+			index: {
+				type: Number | String,
+				default: 0
+			},
+			islast: {
+				type: Boolean,
+				default: false
+			}
+		},
+		data(){
+			return{
+			}
+		},
+		computed: {
+			...mapGetters([
+				'userInfo'
+			])
+		},
+		methods: {
+			previewImage(imgs, current) {
+				let urls = imgs.map(item=>item.image)
+				console.log(urls, 'current')
+				uni.previewImage({
+					current,
+					urls
+				});
+			},
+			toInfo() {
+				this.$emit("toInfo", this.options)
+			},
+			admireHandel() {
+				admire_check({
+					feedid: this.options.id,
+					userid: this.userInfo.id
+				}).then(res => {
+					this.$emit("admireCheck", this.options.id)
+				}).catch(err => {
+					console.error(err)
+				})
+			}
+		}
+	}
+</script>
+
+<style scoped>
+	.feed-item {
+		flex-direction: row;
+		width: 690rpx;
+		margin-left: 30rpx;
+		margin-right: 30rpx;
+	}
+
+	.date {
+		font-size: 24rpx;
+		color: #999999;
+		width: 110rpx;
+		text-align: right;
+		padding-top: 20rpx;
+		/* #ifdef APP-PLUS */
+		/* #endif */
+	}
+
+	.line-group {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		width: 16rpx;
+		margin-left: 10rpx;
+		/* #ifndef APP-PLUS */
+		transform: translateY(10px);
+		/* #endif */
+	}
+
+	.t-line {
+		height: 12px;
+		width: 2rpx;
+		background-color: #DDDDDD;
+	}
+
+	.dot {
+		width: 16rpx;
+		height: 16rpx;
+		border-radius: 50%;
+		background-color: #DDDDDD;
+	}
+
+	.line {
+		width: 2rpx;
+		background-color: #DDDDDD;
+		padding-bottom: 15px;
+		height: 100%;
+		/* #ifdef APP-PLUS */
+		flex: 1;
+		/* #endif */
+	}
+
+	.t-line-none,
+	.b-line-none {
+		background-color: #f6f6f6;
+	}
+
+	.content {
+		display: flex;
+		flex-direction: column;
+		justify-content: space-between;
+		width: 534rpx;
+		padding: 10px;
+		background-color: white;
+		border-radius: 16rpx;
+		margin-bottom: 30px;
+		margin-left: 20rpx;
+	}
+
+	.title {
+		color: #333333;
+		font-size: 30rpx;
+		line-height: 32rpx;
+	}
+
+	.img-group {
+		display: flex;
+		flex-direction: row;
+		justify-content: space-between;
+		flex-wrap: wrap;
+	}
+
+	.img {
+		margin-top: 10rpx;
+		width: 242rpx;
+		height: 245rpx;
+	}
+
+	.footer {
+		display: flex;
+		flex-direction: row;
+		justify-content: flex-end;
+		margin-top: 10px;
+		width: 494rpx;
+	}
+
+	.comment-group,
+	.admire-group {
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		padding: 0 5rpx;
+	}
+	.admire-group {
+		margin-right: 20px;
+	}
+	.icon {
+		width: 40rpx;
+		height: 38rpx;
+	}
+	.num {
+		color: #999999;
+		font-size: 28rpx;
+		margin-left: 2px;
+	}
+</style>

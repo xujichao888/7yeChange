@@ -1,0 +1,757 @@
+<template>
+	<view class="tabs">
+		<swiper class="swiper-box" style="flex: 1;" :duration="300" @change="ontabchange">
+			<swiper-item class="swiper-item">
+				<!-- #ifdef APP-NVUE -->
+				<list class="scroll-v list" enableBackToTop="true" scroll-y loadmoreoffset="15">
+					<refresh class="refresh" @refresh="onrefresh" @pullingdown="onpullingdown" :display="refreshing ? 'show' : 'hide'">
+						<div class="refresh-view">
+							<image class="refresh-icon" :src="refreshIcon" :style="{width: (refreshing || pulling) ? 0: '30px'}" :class="{'refresh-icon-active': refreshFlag}"></image>
+							<loading-indicator class="loading-icon" animating="true" v-if="refreshing"></loading-indicator>
+							<text class="loading-text">{{refreshText}}</text>
+						</div>
+					</refresh>
+					<cell v-for="(item,index) in dataList" :key="item.id">
+						<invite-item :options="item" @close="close(index1,index2)" @click="goDetail(item)">
+							<view class="sign-btn-group" v-if="!item.isSelf" slot="right_btn">
+								<view class="sign-btn" :class="{btnDfaultBg: item.signupinvitestatus == 1 }">
+									<text class="sign-btn-text" :class="{btnDfaultBg: item.signupinvitestatus == 1 }" @click="passSignHandel(item)">{{ type == 0 ? item.signupinvitestatus == 1 ? "已通过" : "取消报名" : item.signupinvitestatus == 1 ? "已通过" : "通过" }}</text>
+								</view>
+								<text class="num-text numDefaultColor" v-if="item.signupinvitestatus == 1 && item.signupinvitepasstime">{{item.signupinvitepasstime}}</text>
+							</view>
+							<view class="info-group" slot="content" v-if="index == 0">
+								<view class="message">
+									<text class="text">职业:{{item.vocation}}</text>
+									<text class="text">兴趣爱好:{{item.hobbystr}}</text>
+									<text class="text">空闲时间:{{item.freetime}}</text>
+									<text class="text">最近想去:{{item.travellocation}}</text>
+									<text class="text">喜欢类型:{{item.target}}</text>
+									<text class="text">喜爱的食物:{{item.food}}</text>
+								</view>
+							</view>
+							<view class="" slot="content" v-if="index > 0">
+								
+							</view>
+							<view class="" slot="photo" v-if="item.info && index > 0">
+								
+							</view>
+							<view slot="code" class="code-group" v-if="showCode && index == 0">
+								<image class="code-img" @click="preview(item.wechatcode)" :src="item.wechatcode"></image>
+								<text class="code-text">邀约成功，请保存对方微信二维码添加好友，需备注信息：七夜{{captcha}}</text>
+							</view>
+							<view slot="code" class="code-group" v-if="type == 1 && index > 0 && item.sex == 0 && item.signupinvitestatus == 1">
+								<image class="code-img" @click="preview(item.wechatcode)" :src="item.wechatcode"></image>
+								<text class="code-text">邀约成功，请保存对方微信二维码添加好友，需备注信息：七夜{{item.captcha}}</text>
+							</view>
+						</invite-item>
+					</cell>
+					<cell class="loading-more" v-if="empty">
+						<text class="loading-more-text">暂无数据</text>
+					</cell>
+					<cell class="loading-more" v-else-if="dataList.length > 3">
+						<text class="loading-more-text">没有更多了~</text>
+					</cell>
+					<!-- <cell class="loading-more" v-else-if="isLoading || dataList.length > 4">
+						<text class="loading-more-text">{{loadingText}}</text>
+					</cell> -->
+				</list>
+				<!-- #endif -->
+				<!-- #ifndef APP-NVUE -->
+				<scroll-view class="scroll-v list" enableBackToTop="true" scroll-y>
+					<view v-for="(item,index) in dataList" :key="item.id">
+						<invite-item :options="item" @close="close(index)" @info="goDetail">
+							<view class="sign-btn-group" v-if="!item.isSelf" slot="right_btn">
+								<view class="sign-btn" :class="{btnDfaultBg: item.signupinvitestatus == 1 }">
+									<text class="sign-btn-text" @click="passSignHandel(item)">{{item.signupinvitestatus == 1 ? "已通过" : "通过"}}</text>
+								</view>
+								<text class="num-text numDefaultColor" v-if="item.signupinvitepasstime && item.signupinvitestatus == 1">{{item.signupinvitepasstime}}</text>
+							</view>
+						</invite-item>
+					</view>
+					<view class="loading-more" v-if="empty">
+						<text class="loading-more-text">暂无数据~</text>
+					</view>
+					<view class="loading-more" v-else-if="dataList.length > 3">
+						<text class="loading-more-text">没有更多了~</text>
+					</view>
+					<!-- <view class="loading-more" v-else="isLoading || dataList.length > 4">
+						<text class="loading-more-text">{{loadingText}}</text>
+					</view> -->
+				</scroll-view>
+				<!-- #endif -->
+			</swiper-item>
+		</swiper>
+	</view>
+</template>
+<script>
+	import {
+		mapGetters,
+		mapMutations
+	} from 'vuex'
+	import inviteItem from './components/inviteItem.nvue';
+	import {
+		get_invite_info,
+		pass_sign,
+		sign_up,
+		send_agora_mess,
+		get_service_info
+	} from "@/common/http.nvue.api.js"
+	import {
+		formatDate,
+		timeDis,
+		getConstellation
+	} from '@/utils/param.js'
+
+	// 缓存每页最多
+	const MAX_CACHE_DATA = 100;
+	// 缓存页签数量
+	const MAX_CACHE_PAGE = 3;
+
+	export default {
+		components: {
+			inviteItem
+		},
+		data() {
+			return {
+				captcha:'',
+				invitationid: 0,
+				type: 0,
+				toUserId: 0,
+				prevPage: 0,
+				page: 1,
+				rows: 10,
+				dataList: [],
+				isLoading: false,
+				refreshText: "",
+				loadingText: '加载更多...',
+				empty: false,
+				noMore: false,
+				cacheTab: [],
+				tabIndex: 0,
+				tabBars: [{
+					name: '推荐',
+					id: 'tuijian'
+				}],
+				scrollInto: "",
+				showTips: false,
+				navigateFlag: false,
+				refreshing: false,
+				refreshFlag: false,
+				pulling: false,
+				refreshIcon: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAMAAABg3Am1AAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAB5QTFRFcHBw3Nzct7e39vb2ycnJioqK7e3tpqam29vb////D8oK7wAAAAp0Uk5T////////////ALLMLM8AAABxSURBVHja7JVBDoAgDASrjqj//7CJBi90iyYeOHTPMwmFZrHjYyyFYYUy1bwUZqtJIYVxhf1a6u0R7iUvWsCcrEtwJHp8MwMdvh2amHduiZD3rpWId9+BgPd7Cc2LIkPyqvlQvKxKBJ//Qwq/CacAAwDUv0a0YuKhzgAAAABJRU5ErkJggg=="
+			}
+		},
+		onLoad(options) {
+			this.toUserId = options.id
+			this.invitationid = options.invitationid
+			this.type = options.type
+			this.init()
+		},
+		computed: {
+			...mapGetters([
+				'userInfo'
+			]),
+			showCode(){
+				let list = this.dataList[0]
+				if(list && list.SignupinviteInfo && list.SignupinviteInfo.length){
+					if(this.type == 0){
+						let current = list.SignupinviteInfo.find(item=>item.inviteuserid == this.userInfo.id)
+						let mysate = current.signupinvitestatus
+						if(mysate == 1 && list.sex == 0){
+							this.captcha = current.captcha
+							return true
+						}
+						return false
+					}
+				}
+				return false
+			}
+		},
+		methods: {
+			toUsetInfo(data) {
+				uni.navigateTo({
+					url: `/pages/user/info?userid=${data.userid}`
+				});
+			},
+			preview(url) {
+				uni.previewImage({
+					urls: [url]
+				});
+			},
+			init() {
+				this.getList();
+			},
+			getList() {
+				this.empty = false
+				get_invite_info({
+					invitationid: Number(this.invitationid),
+					type: Number(this.type)
+				}).then(res => {
+					let data = res.data || []
+					this.refreshEnd()
+					this.dataList = this.restData([data])
+					this.offDown()
+				}).catch(err => {
+					console.error(err)
+				})
+			},
+			restData(data) {
+				let c = []
+				for(let i=0; i< data.length; i++){
+					data[i].info = true
+					let birthday = formatDate(data[i].birthday)
+					data[i].birthday = birthday
+					data[i].constellation = getConstellation(birthday)
+					data[i].hobby = data[i].hobbystr
+					data[i].isSelf = !!data[i].SignupinviteInfo
+					data[i].starttime = formatDate(data[i].starttime).split(" ")[0]
+					data[i].endtime = formatDate(data[i].endtime).split(" ")[0]
+
+					if(data[i].signupinvitepasstime && data[i].signupinvitestatus == 1){
+						let addtime = formatDate(data[i].signupinvitepasstime)
+						let nowtime = new Date().getTime()
+						data[i].signupinvitepasstime = timeDis(addtime, nowtime)
+					}
+					c.push(data[i])
+					if(data[i].SignupinviteInfo){
+						c.push(...this.restData(data[i].SignupinviteInfo))
+					}
+				}
+				return c
+				
+			},
+			goDetail(data) {
+				uni.navigateTo({
+					url: `/pages/user/info?userid=${data.userid}`
+				});
+			},
+			close(index1, index2) {
+				uni.showModal({
+					content: '是否删除本条信息？',
+					success: (res) => {
+						if (res.confirm) {
+							this.newsList[index1].data.splice(index2, 1);
+						}
+					}
+				})
+			},
+			loadMore() {
+				if (this.empty || this.noMore) return
+				this.page++
+				this.getList();
+			},
+			ontabchange(e) {
+				let index = e.target.current || e.detail.current;
+				this.switchTab(index);
+			},
+			switchTab(index) {
+				if (this.newsList[index].data.length === 0) {
+					this.getList(index);
+				}
+
+				if (this.tabIndex === index) {
+					return;
+				}
+
+				// 缓存 tabId
+				if (this.newsList[this.tabIndex].data.length > MAX_CACHE_DATA) {
+					let isExist = this.cacheTab.indexOf(this.tabIndex);
+					if (isExist < 0) {
+						this.cacheTab.push(this.tabIndex);
+						//console.log("cache index:: " + this.tabIndex);
+					}
+				}
+
+				this.tabIndex = index;
+				this.scrollInto = this.tabBars[index].id;
+
+				// 释放 tabId
+				if (this.cacheTab.length > MAX_CACHE_PAGE) {
+					let cacheIndex = this.cacheTab[0];
+					this.clearTabData(cacheIndex);
+					this.cacheTab.splice(0, 1);
+					//console.log("remove cache index:: " + cacheIndex);
+				}
+			},
+			clearTabData(e) {
+				this.dataList.length = 0;
+				this.loadingText = "加载更多...";
+			},
+			refreshData() {},
+			onrefresh() {
+				if (!this.refreshFlag) {
+					return;
+				}
+				this.refreshing = true;
+				this.prevPage = 0
+				this.page = 1
+				this.refreshText = "正在刷新...";
+				this.getList({
+					refresh: true
+				})
+			},
+			onpullingdown(e) {
+				if (this.refreshing || this.pulling) {
+					return;
+				}
+				if (Math.abs(e.pullingDistance) > Math.abs(e.viewHeight)) {
+					this.refreshFlag = true;
+					this.refreshText = "释放立即刷新";
+					this.empty = false
+					//this.noMore = false
+				} else {
+					this.refreshFlag = false;
+					this.refreshText = "下拉可以刷新";
+
+				}
+			},
+			refreshEnd() {
+				setTimeout(() => {
+					// this.unpdateIng = false
+					this.refreshData();
+					this.pulling = true;
+					this.refreshing = false;
+					this.refreshFlag = false;
+					this.refreshText = "已刷新";
+					setTimeout(() => { // TODO fix ios和Android 动画时间相反问题
+						this.pulling = false;
+					}, 500);
+				}, 2000);
+			},
+			offDown() {
+				if (!this.dataList.length) {
+					this.empty = true
+				} else {
+					this.empty = false
+				}
+				if (this.dataList.length > 10) {
+					this.noMore = true
+				} else {
+					this.noMore = false
+				}
+			},
+			passSignHandel(item) {
+				if (item.signupinvitestatus == 1 ) return
+				if(this.type == 0){
+					uni.showLoading({
+						title: "取消报名中..."
+					})
+					sign_up({
+						"invitationid": this.dataList[0].invitationid,
+						"inviteuserid": this.userInfo.id,
+						"userid": item.userid
+					}).then(res => {
+						uni.hideLoading()
+						if(res.code == 0){
+							uni.$emit("deleSign", {type:this.type, id:this.dataList[0].invitationid})
+							this.dataList.splice(1, 1)
+						} else {
+							uni.showToast({
+								title: res.msg,
+								icon: 'none'
+							})
+						}
+					}).catch(err => {
+						uni.hideLoading()
+						uni.showToast({
+							title: err.message,
+							icon: 'none'
+						})
+						console.error(err)
+					})
+				} else {
+					uni.showLoading({
+						title: "处理中..."
+					})
+					pass_sign({
+						id: item.signupinviteid
+					}).then(res => {
+						uni.hideLoading()
+						if (res.code == 0) {
+							let current = this.dataList.find(data => data.signupinviteid == item.signupinviteid)
+							current.signupinvitestatus = 1
+							current.captcha = res.data
+							current.signupinvitepasstime = "刚刚"
+							uni.$emit("addSignCount", this.dataList[0].invitationid)
+							this.getService(item)
+						} else {
+							uni.showToast({
+								title: res.msg,
+								icon: 'none'
+							})
+						}
+					}).catch(err => {
+						uni.hideLoading()
+						console.error(err)
+					})
+				}
+			},
+			getService(item) {
+				get_service_info().then(res => {
+					if (res.code == 0) {
+						this.sendInviteItemMessage(item, res.data, 2)
+					} else {
+						uni.showToast({
+							title: res.msg,
+							icon: "none"
+						})
+					}
+				}).catch(err => {
+					console.log(err, '客服信息获取失败')
+				})
+			},
+			sendInviteItemMessage(inviteUser, service, type){
+				let cadUser,touser,content;
+				if(this.userInfo.sex == 0){
+					cadUser = inviteUser
+					touser = this.userInfo
+					cadUser.id = inviteUser.inviteuserid
+				} else {
+					cadUser = this.userInfo
+					touser = inviteUser
+					touser.id = inviteUser.inviteuserid
+				}
+				if(type == 2){
+					content = {
+						userid: service.serviceinfo.id,
+						userInfo: {
+							userid: service.serviceinfo.id,
+							nickname: service.serviceinfo.nickname,
+							avatar: service.serviceinfo.avatarimg
+						},
+						message: {
+							isSelf: false,
+							type: 2,
+							date: new Date().getTime(),
+							info: {
+								userid: cadUser.id,
+								avatarimg: cadUser.avatarimg,
+								sex: cadUser.sex,
+								nickname: cadUser.nickname,
+								addr: cadUser.citystr || '',
+								age: cadUser.age || '',
+								constellation: cadUser.constellation || '',
+								height: cadUser.height || '',
+								weight: cadUser.weight || '',
+								sanwei: "",
+								hobby: cadUser.hobby || '',
+								freetime: cadUser.freetime || '',
+								travellocation: cadUser.travellocation || '',
+								target: cadUser.target || '',
+							},
+							id: new Date().getTime()
+						}
+					}
+					
+				} else {
+					content = {
+						userid: service.serviceinfo.id,
+						userInfo: {
+							userid: service.serviceinfo.id,
+							nickname: service.serviceinfo.nickname,
+							avatar: service.serviceinfo.avatarimg
+						},
+						message: {
+							type: 0,
+							date: new Date().getTime(),
+							msg: `邀约成功，“${cadUser.nickname}”将用微信添加您为好友，备注信息为：七夜${inviteUser.captcha}`,
+							id: new Date().getTime(),
+							isSelf: false
+						}
+					}
+				}
+				content = JSON.stringify(content)
+				send_agora_mess({
+					senduserid: service.serviceinfo.id + '',
+					touserid: touser.id + '',
+					content
+				}).then(res=>{
+					if(res.code == 0){
+						console.log('发送邀约成功')
+						if(type == 2){
+							this.sendInviteItemMessage(inviteUser, service, 0)
+						}
+					} else {
+						uni.showToast({
+							title:res.msg,
+							icon:"none"
+						})
+					}
+				}).catch(err=>{
+					console.log(err)
+				})
+			},
+			newGuid() {
+				let s4 = function() {
+					return (65536 * (1 + Math.random()) | 0).toString(16).substring(1);
+				}
+				return (s4() + s4() + "-" + s4() + "-4" + s4().substr(0, 3) + "-" + s4() + "-" + s4() + s4() + s4()).toUpperCase();
+			}
+		}
+	}
+</script>
+
+<style scoped>
+	/* #ifndef APP-PLUS */
+	page {
+		width: 100%;
+		min-height: 100%;
+		display: flex;
+	}
+
+	/* #endif */
+
+	.tabs {
+		flex: 1;
+		flex-direction: column;
+		overflow: hidden;
+		background-color: #f6f6f6;
+		/* #ifdef MP-ALIPAY || MP-BAIDU */
+		height: 100vh;
+		/* #endif */
+	}
+
+	.tab-group {
+		display: flex;
+		flex-direction: row;
+		align-items: flex-start;
+		justify-content: space-between;
+		align-items: flex-start;
+		padding-left: 24rpx;
+		padding-right: 24rpx;
+	}
+
+	.icon-btn {
+		width: 30rpx;
+		height: 30rpx;
+		margin: 24rpx;
+	}
+
+	.scroll-h {
+		width: 550rpx;
+		flex-direction: row;
+		/* #ifndef APP-PLUS */
+		white-space: nowrap;
+		/* #endif */
+		/* flex-wrap: nowrap; */
+		/* border-color: #cccccc;
+		border-bottom-style: solid;
+		border-bottom-width: 1px; */
+		margin-bottom: 10px;
+	}
+
+	.uni-tab-item {
+		/* #ifndef APP-PLUS */
+		display: inline-block;
+		/* #endif */
+		flex-wrap: nowrap;
+	}
+
+	.uni-tab-group {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+	}
+
+	.uni-tab-item-title {
+		width: 120rpx;
+		text-align: center;
+		color: #555;
+		font-size: 36rpx;
+		height: 80rpx;
+		line-height: 80rpx;
+		flex-wrap: nowrap;
+		/* #ifndef APP-PLUS */
+		white-space: nowrap;
+		/* #endif */
+	}
+
+	.border-img {
+		width: 112rpx;
+		height: 20rpx;
+	}
+
+	.uni-tab-item-title-active {
+		color: #e1b893;
+		font-size: 48rpx;
+		font-weight: 600;
+	}
+
+	.date-group {
+		flex-direction: row;
+		align-items: center;
+		padding-left: 24rpx;
+		padding-right: 24rpx;
+		margin-bottom: 10px;
+	}
+
+	.date {
+		font-size: 26rpx;
+		color: #999999;
+		width: 200rpx;
+	}
+
+	.date-line {
+		height: 1rpx;
+		background-color: #cccccc;
+		width: 500rpx;
+	}
+
+	.swiper-box {
+		flex: 1;
+	}
+
+	.swiper-item {
+		flex: 1;
+		flex-direction: row;
+	}
+
+	.scroll-v {
+		flex: 1;
+		/* #ifndef MP-ALIPAY */
+		flex-direction: column;
+		/* #endif */
+		width: 750rpx;
+	}
+
+	.update-tips {
+		position: absolute;
+		left: 0;
+		top: 41px;
+		right: 0;
+		padding-top: 5px;
+		padding-bottom: 5px;
+		background-color: #FDDD9B;
+		align-items: center;
+		justify-content: center;
+		text-align: center;
+	}
+
+	.update-tips-text {
+		font-size: 14px;
+		color: #ffffff;
+	}
+
+	.refresh {
+		width: 750rpx;
+		height: 64px;
+		justify-content: center;
+	}
+
+	.refresh-view {
+		flex-direction: row;
+		flex-wrap: nowrap;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.refresh-icon {
+		width: 30px;
+		height: 30px;
+		transition-duration: .5s;
+		transition-property: transform;
+		transform: rotate(0deg);
+		transform-origin: 15px 15px;
+	}
+
+	.refresh-icon-active {
+		transform: rotate(180deg);
+	}
+
+	.loading-icon {
+		width: 20px;
+		height: 20px;
+		margin-right: 5px;
+		color: #999999;
+	}
+
+	.loading-text {
+		margin-left: 2px;
+		font-size: 16px;
+		color: #999999;
+	}
+
+	.loading-more {
+		align-items: center;
+		justify-content: center;
+		padding-top: 10px;
+		padding-bottom: 10px;
+		text-align: center;
+	}
+
+	.loading-more-text {
+		font-size: 28rpx;
+		color: #999;
+	}
+
+	.sign-btn-group {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+	}
+
+	.sign-btn {
+		background-color: #e6e6e6;
+		width: 128rpx;
+		height: 48rpx;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: 30rpx;
+	}
+	.btnDfaultBg {
+		background-color: rgba(0,0,0,0);
+		color: #e1b893;
+	}
+
+	.sign-btn-text {
+		color: #595757;
+		font-size: 26rpx;
+		line-height: 48rpx;
+		width: 128rpx;
+		height: 48rpx;
+		text-align: center;
+	}
+
+	.num-text {
+		font-size: 24rpx;
+		color: #e1b893;
+		margin-top: 5px;
+	}
+
+	.numDefaultColor {
+		color: #999999;
+	}
+	.text{
+		font-size: 28rpx;
+		color: #898989;
+		padding: 2px;
+	}
+	.info-group{
+		display: flex;
+		flex-direction: row;
+	}
+	.message{
+		flex: 1;
+		padding-right: 5px;
+	}
+	.code-group{
+		display: flex;
+		flex-direction: row;
+		margin-top: 5px;
+		align-items: center;
+		border-top-color: #e1b893;
+		border-top-width: 2rpx;
+		padding-top: 10px;
+	}
+	.code-img{
+		width: 100rpx;
+		height: 100rpx;
+	}
+	.code-text{
+		flex: 1;
+		padding-left: 5px;
+		font-size: 28rpx;
+		color: #e1b893;
+	}
+</style>

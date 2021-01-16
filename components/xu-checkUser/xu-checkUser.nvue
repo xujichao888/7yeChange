@@ -1,0 +1,327 @@
+<template>
+	<view class="check-user" style="position: relative;">
+		<view class="check-user-content">
+			<view class="first-row">
+				<text class="nickname">{{renderJson.nickname}}</text>
+			<!-- 	<view class="btn" @click="focus" :class="{btnactive:isFocus}">
+					<text class="select-all-mic">关注</text>
+				</view> -->
+			</view>
+			<view class="level-age-region">
+				<text class="level">等级</text>
+				<view class="sex_box">
+					<image class="sex" v-if="!renderJson.sex" src="/static/icon/woman_icon.png" mode="widthFix"></image>
+					<image class="sex" v-if="renderJson.sex" src="/static/icon/man_icon.png" mode="widthFix"></image>
+					<text class="age" :class="{manage:renderJson.sex}">{{calculateAge}}</text>
+				</view>
+				<view class="circle"></view>
+				<text class="star">{{star}}</text>
+				<view class="circle"></view>
+				<text class="region">{{regionName}}</text>
+			</view>
+			<view class="user-some-box">
+				<text class="user-some">{{renderJson.info?renderJson.info:'这家伙很懒什么也没留下'}}</text>
+			</view>
+			<view class="scrollFather">
+				<scroll-view class="img-render" :scroll-x="true" :show-scrollbar="false">
+					<view class="img-render-box">
+						<view class="list-img" v-for="(item,index) in renderImage" :key="index" @click="previewImage(index)">
+							<image class="imgs" :src="item" mode="aspectFill"></image>
+						</view>
+					</view>
+				</scroll-view>
+			</view>
+			<view class="bottom-bar">
+				<xu-checkUserBottomBar 
+					:hasRightBorder="true" 
+					IconImgUrl="/static/icon/@@3x.png" 
+					text="Ta" 
+					imgWidth="40rpx"
+					type="1"
+					@clickHandle="sendate"
+				/>
+			<!-- 	<xu-checkUserBottomBar 
+					:hasRightBorder="true" 
+					IconImgUrl="/static/icon/liwu%20@3x.png" 
+					text="送礼" 
+					imgWidth="50rpx"
+					type="2"
+					@clickHandle="gotoGiftPop"
+				/> -->
+				<xu-checkUserBottomBar 
+					IconImgUrl="/static/icon/sixin@3x.png" 
+					text="联系TA" 
+					imgWidth="60rpx"
+					type="3"
+					@clickHandle ="talkOnePop"
+				/>
+			</view>
+		</view>
+
+		<image class="avatar" :src="renderJson.avatar" mode="aspectFill"></image>
+	</view>
+</template>
+
+<script>
+	import calculateStar from '@/static/publicJs/calculateStar.js'
+	export default {
+		props: {
+			renderJson: {
+				type: Object,
+				default: {
+
+				}
+			}
+		},
+		data() {
+			return {
+				isFocus: false
+			}
+		},
+		computed: {
+			calculateAge() {
+				return (this.renderJson && this.renderJson.birthday) && new Date().getFullYear() - parseInt(this.renderJson.birthday
+					.substr(0, 4));
+			},
+			regionName() {
+				if (this.renderJson) {
+					return this.renderJson.regionname ? this.renderJson.regionname : '中国'
+				}
+
+			},
+			star() {
+				if (this.renderJson.birthday) {
+					let arr1 = this.renderJson.birthday.slice(0,10);
+					console.log('arr1',arr1)
+					let arr = arr1.split("-")
+					console.log(arr)
+					console.log( arr[1][0] == "0")
+					arr[1] = arr[1][0] == "0" ?arr[2].slice(1):arr[1]
+					arr[2] = arr[2][0] == "0" ?arr[2].slice(1):arr[2]
+					return calculateStar(...arr)
+				}
+			},
+			renderImage(){
+				if(this.renderJson && this.renderJson.images){
+					let arr = this.renderJson.images.filter(item=>{
+						if(item){
+							return item
+						}
+					})
+					return arr
+				}else{
+					return []
+				}	
+				
+			}
+		},
+		methods: {
+			focus() {
+				this.isFocus = !this.isFocus
+			},
+			previewImage(index){//预览图片
+				let _this = this
+				uni.previewImage({
+					current:index,
+					urls:_this.renderImage
+				})
+			},
+			sendate(){
+				this.$emit('sendATE',this.renderJson.nickname)
+			},
+			gotoGiftPop(){
+				this.$emit('gotoGiftPop',this.renderJson)
+			},
+			talkOnePop(){
+				this.$emit('sendCardOUt',{
+					userid:this.renderJson.id,
+				    avatarimg: this.renderJson.avatar,
+					sex: this.renderJson.sex,
+					nickname: this.renderJson.nickname,
+					addr: this.renderJson.regionName?this.renderJson.regionName:'',
+					age: this.renderJson.calculateAge,
+				    constellation: this.renderJson.star
+				})
+			
+				// this.$emit('talkOnePop',this.renderJson)
+			}
+			
+		}
+	}
+</script>
+
+<style scoped>
+	.check-user {
+		width: 750rpx;
+		height: 500rpx;
+	}
+
+	.check-user-content {
+		border-top-left-radius: 38rpx;
+		border-top-right-radius: 38rpx;
+		width: 750rpx;
+		height: 470rpx;
+		background-color: #021526;
+		position: absolute;
+		bottom: 0;
+		left: 0;
+	}
+
+	.avatar {
+		position: absolute;
+		left: 40rpx;
+		top: 0;
+		width: 132rpx;
+		height: 132rpx;
+		border-radius: 112rpx;
+	}
+
+	.first-row {
+		width: 750rpx;
+		height: 100rpx;
+
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+	}
+
+	.nickname {
+		margin-left: 180rpx;
+		color: #FFFFFF;
+	}
+
+	.focus {
+		width: 94rpx;
+		height: 50rpx;
+	}
+
+	.btn {
+		width: 105rpx;
+		height: 57rpx;
+		margin-right: 30rpx;
+		background-color: #520c2c;
+		border-width: 3rpx;
+		border-style: solid;
+		border-color: #f72585;
+		border-radius: 78rpx;
+		flex-direction: row;
+		justify-content: center;
+		align-items: center;
+	}
+
+	.btnactive {
+		border-color: #021526;
+		background-color: #F72585
+	}
+
+	.select-all-mic {
+		color: #FFFFFF;
+		font-size: 24rpx;
+		line-height: 57rpx;
+	}
+
+	.level-age-region {
+		width: 750rpx;
+		height: 60rpx;
+		flex-direction: row;
+		align-items: center;
+	}
+
+	.level {
+		width: 68rpx;
+		height: 30rpx;
+		border-radius: 30rpx;
+		margin-left: 72rpx;
+		background-color: #7060DC;
+		text-align: center;
+		line-height: 30rpx;
+		color: #FFFFFF;
+		font-size: 24rpx;
+	}
+
+	.sex_box {
+		margin-left: 40rpx;
+		flex-direction: row;
+	}
+
+	.sex {
+		width: 24rpx;
+	}
+
+	.age {
+		font-size: 24rpx;
+		color: #F72585;
+		margin-left: 5rpx;
+	}
+
+	.manage {
+		color: #00DCDF;
+	}
+
+	.star {
+		font-size: 24rpx;
+		color: #FFFFFF;
+	}
+
+	.circle {
+		width: 10rpx;
+		height: 10rpx;
+		background-color: #FFFFFF;
+		border-radius: 30rpx;
+		margin: 0 10rpx;
+	}
+
+	.region {
+		font-size: 24rpx;
+		color: #FFFFFF;
+
+	}
+
+	.user-some-box {
+		height: 80rpx;
+		flex-direction: row;
+		justify-content: center;
+		align-items: center;
+	}
+
+	.user-some {
+		width: 670rpx;
+		lines: 1;
+		text-overflow: ellipsis;
+		font-size: 26rpx;
+		color: #D1D1D1;
+	}
+	.scrollFather{
+		width: 750rpx;
+		flex-direction: row;
+		justify-content: center;
+	}
+	.img-render {
+		width: 678rpx;
+		height: 100rpx;
+		flex-direction: row;
+	}
+
+	.img-render-box {
+		flex-direction: row;
+	}
+
+	.list-img {
+		width: 96rpx;
+		height: 96rpx;
+		background-color: #005B5C;
+		margin: 0 10rpx;
+		border-radius: 20rpx;
+	}
+	.imgs{
+		width: 96rpx;
+		height: 96rpx;
+		border-radius: 20rpx;
+	}
+	.bottom-bar{
+		width: 750rpx;
+		height: 130rpx;
+		flex-direction: row;
+		align-items: flex-end;
+	}
+</style>

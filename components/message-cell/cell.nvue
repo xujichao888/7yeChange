@@ -1,0 +1,173 @@
+<template>
+	<view class="cell-wrap" :style="{width:width + 'rpx'}">
+		<view class="cell-content">
+			<image class="avatar" :src="data.userInfo.avatar"></image>
+			<view class="content">
+				<view class="top">
+					<text class="nickname">{{data.userInfo.nickname}}</text>
+					<text class="time">{{date}} </text>
+				</view>
+				<!-- {{data.message[data.message.length-1].msg}} -->
+				<view class="bottom" v-if="data.message.length">
+					<text class="msg" v-if="data.message[data.message.length-1].type == 0">{{data.message[data.message.length-1].msg}}</text>
+					<text class="msg" v-else-if="data.message[data.message.length-1].type == 1">图片</text>
+					<text class="msg" v-else-if="data.message[data.message.length-1].type == 2">卡片</text>
+					<text class="msg" v-else-if="data.message[data.message.length-1].type == 3">完善信息</text>
+					<uni-badge v-if="badge > 0" type="error" class="badge" :text="badge"></uni-badge>
+				</view>
+			</view>
+		</view>
+	</view>
+</template>
+
+<script>
+	import uniBadge from "@/components/uni-badge/uni-badge.vue"
+	import {
+		exchangeTime
+	} from '@/utils/param.js'
+	import {
+		mapGetters,
+		mapMutations
+	} from 'vuex'
+	export default {
+		components: {
+			uniBadge
+		},
+		props: {
+			options: {
+				type: Object,
+				default: function(e) {
+					return {}
+				}
+			},
+			width: {
+				type: Number,
+				default: 750
+			},
+			badge: {
+				type: String | Number,
+				default: 0
+			}
+		},
+		data(){
+			return {
+				data:{}
+			}
+		},
+		watch: {
+			options: {
+				handler(newName, oldName) {
+					this.data = newName
+				},
+				immediate: true,
+				deep: true
+			}
+		},
+		computed: {
+			date() {
+				if (this.options.message.length && this.options.message[this.options.message.length - 1].date) {
+					return exchangeTime(this.options.message[this.options.message.length - 1].date, false, true)
+				}
+				return ''
+			}
+		}
+	}
+</script>
+
+<style scoped>
+	.cell-wrap {
+		padding-bottom: 20rpx;
+		padding-left: 30rpx;
+		padding-right: 30rpx;
+		display: flex;
+		flex-direction: column;
+	}
+
+	.cell-content {
+		padding: 20rpx 10rpx;
+		flex: 1;
+		background-color: white;
+		border-radius: 10rpx;
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.avatar {
+		width: 110rpx;
+		height: 110rpx;
+		border-radius: 50%;
+		flex-shrink: 0;
+	}
+
+	.content {
+		display: flex;
+		flex-direction: column;
+		flex: 1;
+		height: 90rpx;
+		/* #ifndef APP-PLUS */
+		width: 560rpx;
+		/* #endif */
+	}
+
+	.top,
+	.bottom {
+		flex: 1;
+		display: flex;
+		flex-direction: row;
+		justify-content: space-between;
+		align-items: flex-end;
+		padding: 0 15rpx;
+		flex-shrink: 0;
+	}
+	.top{
+		align-items: flex-start;
+	}
+
+	.nickname {
+		flex: 4;
+		font-size: 32rpx;
+		color: #333333;
+		padding-top: 15rpx;
+		flex-shrink: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		/* #ifndef APP-PLUS */
+		white-space: nowrap;
+		/* #endif */
+		/* #ifdef APP-PLUS */
+		lines: 1;
+		text-overflow: ellipsis;
+		/* #endif */
+	}
+
+	.time {
+		flex: 3;
+		flex-shrink: 0;
+		font-size: 26rpx;
+		color: #999999;
+		text-align: right;
+	}
+
+	.msg {
+		flex: 1;
+		flex-shrink: 0;
+		font-size: 28rpx;
+		color: #555555;
+		padding-right: 10rpx;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		/* #ifndef APP-PLUS */
+		white-space: nowrap;
+		/* #endif */
+		/* #ifdef APP-PLUS */
+		lines: 1;
+		text-overflow: ellipsis;
+		/* #endif */
+	}
+
+	.badge {
+		width: 100rpx;
+	}
+</style>

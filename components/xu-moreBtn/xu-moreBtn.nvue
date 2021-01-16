@@ -1,0 +1,40 @@
+<template>
+	<view class="more-pubic-btn" @click="clickHandle">
+		<image  class="btn-image" :src="imageUrl" mode="widthFix"></image>
+		<text class="btn-text">{{text}}</text>
+	</view>
+</template>
+
+<script>
+	export default {
+		props:{
+			imageUrl:String,
+			text:String,
+			type:String
+		},
+		methods:{
+			clickHandle(){
+				this.$emit('clickcallBack',this.type)
+			}
+		}
+	}
+</script>
+
+<style scoped>
+	.more-pubic-btn{
+		width: 100rpx;
+		height: 140rpx;
+		justify-content: center;
+		margin-right: 40rpx;
+	}
+	.btn-image{
+		width: 100rpx;
+		height:100rpx;
+	}
+	.btn-text{
+		color: #FFFFFF;
+		font-size: 24rpx;
+		margin-top: 20rpx;
+		text-align: center;
+	}
+</style>

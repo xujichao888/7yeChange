@@ -1,0 +1,483 @@
+<template>
+	<view class="chat-wrap">
+		<text v-if="date" class="date">{{date}}</text>
+		<view class="chat-content" :class="{'chat-content-self' : options.isSelf, 'p-0':options.type == 3}">
+			<image v-if="!options.isSelf" class="avatar" :class="{'p-t-15':options.type == 3}" :src="user.avatar" @click="toUseInfo"></image>
+			<image v-if="!options.isSelf && options.type != 1 && options.type != 2" class="arrow" :class="{'p-t-15':options.type == 3}" src="/static/img/chat.png"></image>
+			<icon v-if="options.isSelf && options.sendErr" type="warn" class="sendErr" size="18" />
+			<view class="message-wrap" 
+			:class="{'message-wrap-self':options.isSelf,'noBg':options.type == 1 || options.type == 3, 'message-wrap-img': options.type == 1 && !options.isSelf, 'message-wrap-img-self': options.type == 1 && options.isSelf, 'cardBg_self':options.type == 2 && options.isSelf, 'cardBg':options.type == 2 && !options.isSelf}"
+			 style="min-height:80rpx;position: relative;">
+				<!-- <text v-if="options.type == 0" style="max-width:535rpx;" selectable class="message">{{msg}}</text> -->
+				<view v-if="options.type == 0" style="max-width:535rpx;" class="message">
+					<text v-for="(item,index) in nodes" :key="index" :class="{hrefDom:item.isHref}" @click="openUrl(item)" space
+					 selectable class="message-text">{{item.text}}</text>
+				</view>
+				<view class="" v-else-if="options.type == 1" :style="{width:options.width + 'rpx'}" style="max-width:300rpx;"
+				 @click="previewImage(options.img)">
+					<image class="img" mode="widthFix" :src="options.img" style="max-width:300rpx;"></image>
+				</view>
+				<view class="card" v-else-if="options.type == 2" @click="toUseInfo('cap')" style="flex: 1;">
+					<view class="type2-card">
+						<image class="card-avatar" :src="options.info.avatarimg"></image>
+						<view class="card-view">
+							<view class="nickname-wrap">
+								<text class="nickname" style="max-width:170rpx">{{options.info.nickname}}</text>
+								<view class="type2-addr" v-if="options.info.addr">
+									<image class="addr-icon" v-if="options.info.addr" src="/static/img/index/addr.png"></image>
+									<text class="addr" style="max-width:170rpx">{{options.info.addr}}</text>
+								</view>
+							</view>
+							<view class="ingp2-group">
+								<view class="sex-wrap">
+									<image class="sex" v-if="options.info.sex == 0" src="/static/icons/index/nv.png"></image>
+									<image class="sex sex-nan" v-else-if="options.info.sex == 1" src="/static/icons/index/nan.png"></image>
+									<text class="age-text size-28">{{options.info.age}}岁 · {{options.info.constellation}}座</text>
+								</view>
+								<view class="type2-info" v-if="options.info.height || options.info.weight || options.info.sanwei">
+									<text class="age-text size-28" v-if="options.info.height !== ''">{{options.info.height}}cm</text>
+									<text class="age-text size-28" v-if="options.info.height !== '' && options.info.weight !== ''"> · </text>
+									<text class="age-text size-28" v-if="options.info.weight !== ''">{{options.info.weight}}kg</text>
+									<text class="age-text size-28" v-if="options.info.weight !== '' && options.info.height !== '' && options.info.sanwei !== ''"> · </text>
+									<text class="age-text size-28" v-if="options.info.sanwei !== ''">{{options.info.sanwei}}</text>
+								</view>
+							</view>
+							<!-- <view class="cell-wrap">
+								<view class="cell-item">
+									<text class="label">职业： </text>
+									<text class="value">{{options.info.vocation}} </text>
+								</view>
+								<view class="cell-item">
+									<text class="label">兴趣爱好： </text>
+									<view class="value">
+										<text class="value">{{options.info.hobbystr}}</text>
+									</view>
+								</view>
+								<view class="cell-item">
+									<text class="label">空闲时间： </text>
+									<text class="value">{{options.info.freetime}} </text>
+								</view>
+								<view class="cell-item">
+									<text class="label">最近想去： </text>
+									<text class="value">{{options.info.travellocation}} </text>
+								</view>
+								<view class="cell-item">
+									<text class="label">喜欢类型： </text>
+									<text class="value">{{options.info.target}} </text>
+								</view>
+							</view> -->
+						</view>
+					</view>
+					
+					<text class="type2-tips">个人名片</text>
+				</view>
+				<view class="card-mess" style="position: relative;" v-else-if="options.type == 3">
+					<jyf-parser class="jyf-parser" :html="options.msg" lazy-load ref="article" selectable
+					 show-with-animation use-anchor @error="error" @imgtap="imgtap" @linkpress="linkpress" @ready="ready"></jyf-parser> 
+				</view> 
+			</view> 
+				<image v-if="options.isSelf && options.type != 1 && options.type != 2" class="arrow" src="/static/img/chat_self.png"></image>
+				<image v-if="options.isSelf" class="avatar-self" :src="userInfo.avatarimg" @click="toUseInfo('self')"></image>
+			</view>		
+		</view>
+</template>
+
+<script>
+	import jyfParser from '@/components/jyf-parser/jyf-parser';
+	import {
+		mapGetters,
+		mapMutations
+	} from 'vuex'
+	import {
+		exchangeTime,
+		filterEmotion,
+		replaceUrl
+	} from '@/utils/param.js'
+	export default {
+		components:{
+			jyfParser
+		},
+		props: {
+			options: {
+				type: Object,
+				default: function(e) {
+					return {}
+				}
+			},
+			user: {
+				type: Object,
+				default: function(e) {
+					return {}
+				}
+			}
+		},
+		data() {
+			return {
+			}
+		},
+		computed: {
+			...mapGetters([
+				'userInfo'
+			]),
+			date() {
+				if (this.options.date) {
+					return exchangeTime(this.options.date)
+				}
+				return ''
+			},
+			msg() {
+				return filterEmotion(this.options.msg)
+			},
+			nodes() {
+				return replaceUrl(this.options.msg)
+			}
+		},
+		methods: {
+			...mapMutations([
+				'setChoose'
+			]),
+			ready(e) {
+			},
+			imgtap(e) {
+				console.log('imgtap', e);
+			},
+			linkpress(e) {
+				console.log('linkpress', e);
+			},
+			error(e) {
+				console.error(e, 'jyfParser');
+			},
+			previewImage(url) {
+				this.setChoose(true)
+				let reg = /^(http|file)/
+				if(!reg.test(url)) url = `file://${url}`
+				uni.previewImage({
+					urls: [url]
+				});
+			},
+			toUseInfo(type) {
+				let userid
+				if (type == 'self') userid = this.userInfo.id
+				else if (type == 'cap') userid = this.options.info.userid
+				else userid = this.user.userid
+
+				uni.navigateTo({
+					url: `/pages/user/info?userid=${userid}`
+				});
+			},
+			toCompile() {
+				let usertype = this.userInfo.type
+				let userid = this.options.info.userid
+				let sex = this.options.info.sex
+				uni.navigateTo({
+					url: `/pages/service/compile?userid=${userid}&sex=${sex}&usertype=${usertype}&evpi=1`
+				})
+			},
+			openUrl(data) {
+				if (!data.isHref) return
+				let token = uni.getStorageSync("token")
+				let paymenttype = uni.getSystemInfoSync().platform
+				let wxUserInfo = uni.getStorageSync("wxUserInfo")
+				let openId = wxUserInfo ? wxUserInfo.userInfo.openId : ""
+				
+				console.log(data.text + '?token=' + token + '&openId=' + openId, 'url')
+				plus.runtime.openURL(data.text + '?token=' + token + '&openId=' + openId);
+			}
+		}
+	}
+</script>
+
+<style scoped>
+	.chat-wrap {
+		display: flex;
+		flex-direction: column;
+		padding-top: 10rpx;
+	}
+
+	.date {
+		text-align: center;
+		font-size: 26rpx;
+		color: #999999;
+	}
+
+	.chat-content {
+		display: flex;
+		flex-direction: row;
+		align-items: flex-start;
+		justify-content: flex-start;
+		padding-left: 20rpx;
+		padding-right: 100rpx;
+		padding-top: 20rpx;
+		padding-bottom: 20rpx;
+	}
+
+	.chat-content-self {
+		justify-content: flex-end;
+		padding-right: 20rpx;
+		padding-left: 100rpx;
+	}
+
+	.noBg {
+		background-color: rgba(255, 255, 255, 0) !important;
+	}
+
+	.avatar {
+		width: 80rpx;
+		height: 80rpx;
+		border-radius: 5rpx;
+		margin-right: 10rpx;
+		flex-shrink: 0;
+		border-radius: 50%;
+	}
+
+	.avatar-self {
+		flex-shrink: 0;
+		width: 80rpx;
+		height: 80rpx;
+		border-radius: 5rpx;
+		margin-left: 10rpx;
+		border-radius: 50%;
+	}
+
+	.message-wrap {
+		flex-wrap: wrap;
+		background-color: white;
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		border-radius: 5rpx;
+		flex-wrap: wrap;
+		align-items: flex-start;
+		padding-top: 15rpx;
+		padding-bottom: 15rpx;
+	}
+
+	.message-wrap-self {
+		background-color: #95ec69;
+	}
+
+	.message-wrap-img {
+		padding-top: 0;
+		padding-bottom: 0;
+		padding-left: 12rpx;
+	}
+
+	.message-wrap-img-self {
+		padding-right: 12rpx;
+		padding-top: 0;
+		padding-bottom: 0;
+	}
+
+	.message {
+		padding-left: 15rpx;
+		padding-right: 15rpx;
+		padding-top: 8rpx;
+		padding-bottom: 8rpx;
+	}
+
+	.message-text {
+		font-size: 32rpx;
+		color: #333333;
+		line-height: 40rpx;
+	}
+
+	.arrow {
+		width: 12rpx;
+		height: 24rpx;
+		transform: translateY(15rpx);
+	}
+
+	.card {
+		width: 520rpx;
+		display: flex;
+		flex-direction: column;
+		justify-content: space-between;
+	}
+	.type2-card{
+		padding-left: 20rpx;
+		padding-right: 20rpx;
+		padding-top: 5rpx;
+		padding-bottom: 20rpx;
+		display: flex;
+		flex-direction: row;
+	}
+	.card-avatar {
+		width: 120rpx;
+		height: 120rpx;
+		border-radius: 20rpx;
+	}
+
+	.card-view {
+		width: 340rpx;
+		height: 120rpx;
+		display: flex;
+		flex-direction: column;
+		margin-left: 20rpx;
+		justify-content: space-between;
+		padding-top: 5rpx;
+	}
+
+	.nickname-wrap {
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+	}
+	.type2-addr{
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+	}
+	.nickname {
+		font-size: 32rpx;
+		color: #333333;
+		font-weight: bold;
+		margin-right: 15rpx;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		/* #ifndef APP-PLUS */
+		white-space: nowrap;
+		/* #endif */
+		/* #ifdef APP-PLUS */
+		lines: 1;
+		text-overflow: ellipsis;
+		/* #endif */
+	}
+
+	.addr {
+		font-size: 24rpx;
+		color: #E1B893;
+	}
+
+	.addr-icon {
+		width: 17rpx;
+		height: 20rpx;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		/* #ifndef APP-PLUS */
+		white-space: nowrap;
+		/* #endif */
+		/* #ifdef APP-PLUS */
+		lines: 1;
+		text-overflow: ellipsis;
+		/* #endif */
+	}
+
+	.sex-wrap {
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+	}
+
+	.age-text,
+	.label,
+	.value {
+		color: #555555;
+		font-size: 24rpx;
+	}
+
+	.sex {
+		width: 14rpx;
+		height: 21rpx;
+		margin-right: 10rpx;
+	}
+	.sex-nan{
+		width: 19rpx;;
+	}
+
+	.cell-wrap {
+		display: flex;
+		flex-direction: column;
+	}
+
+	.cell-item {
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+	}
+
+	.card-mess {
+		display: flex;
+		flex-direction: column;
+		/* padding-left: 20rpx;
+		padding-right: 20rpx; */
+	}
+	.card-mess-btn {
+		padding-top: 15rpx;
+		font-size: 34rpx;
+		color: #0d9c68;
+	}
+
+	.card-mess-title {
+		font-size: 32rpx;
+	}
+
+	.card-mess-sex {
+		font-size: 32rpx;
+		padding-top: 35rpx;
+		padding-left: 20rpx;
+		padding-right: 20rpx;
+	}
+
+	.hrefDom {
+		color: #3399ff;
+	}
+
+	.sendErr {
+		padding-top: 20rpx;
+		padding-right: 5rpx;
+	}
+	.cardBg_self{
+		background-color: white;
+		margin-right: 12rpx;
+		padding-bottom: 0;
+		border-radius: 20rpx;
+	}
+	.cardBg{
+		background-color: white;
+		margin-left: 12rpx;
+		padding-bottom: 0;
+		border-radius: 20rpx;
+	}
+	.type2-info{
+		width: 400rpx;
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		justify-content: flex-start;
+	}
+	.size-28{
+		font-size: 28rpx;
+	}
+	.ingp2-group{
+		padding-bottom: 10rpx;
+	}
+	.type2-tips{
+		padding-left: 20rpx;
+		background-color: white;
+		font-size: 28rpx;
+		color: #a7a7a7;
+		padding-top: 10rpx;
+		padding-bottom: 10rpx;
+		border-top-color: #EDEDED;
+		border-bottom-color: #EDEDED;
+		border-top-width: 1rpx;
+		border-bottom-width: 1rpx;
+		border-bottom-left-radius: 20rpx;
+		border-bottom-right-radius: 20rpx;
+	}
+	.jyf-parser{
+		width: 535rpx;
+	}
+	.p-0{
+		padding-right: 0;
+		padding-bottom: 0;
+		padding-top: 0;
+	}
+	.p-t-0{
+		padding-top: 0;
+	}
+	.p-t-15{
+		margin-top: 15rpx;
+	}
+</style>

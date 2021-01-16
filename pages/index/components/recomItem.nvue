@@ -1,0 +1,229 @@
+<template>
+	<view class="recom-item" @click.prevent="toUserInfo(options.userid)">
+		<image mode="aspectFill" class="photo-img" :src="options.privacyimage"></image>
+		<view class="info">
+			<view class="title-content">
+				<view class="title">
+					<text class="name">{{options.nickname}}</text>
+					<view class="addr-content" v-if="options.citystr">
+						<image class="addr-icon" src="/static/img/index/addr.png"></image>
+						<text class="addr" style="max-width:140rpx;padding-left: 5rpx;">{{options.citystr}}</text>
+					</view>
+				</view>
+				<view class="age-content">
+					<image v-if="options.sex!=-1" class="age-sex" :src="getSex" mode="widthFix"></image>
+					<text class="age" v-if="options.age">{{options.age}}岁</text>
+					<text class="age" v-if="options.age && options.constellation"> · </text>
+					<text class="constellation">{{options.constellation}}座</text>
+					<image v-if="options.level&&options.sex==1" :src="`/static/icons/leve/leve${options.level}.png`" style="width: 100rpx;" mode="widthFix"></image>
+				</view>
+				<view class="height-content">
+					<text class="height" v-if="options.height">{{options.height}}cm</text>
+					<text class="height" v-if="options.height && options.weight"> · </text>
+					<text class="weight" v-if="options.weight">{{options.weight}}kg</text>
+					<text class="height" v-if="(options.weight && options.height) && (sanwei || options.vehicle)"> · </text>
+					<text class="sanwei" v-if="options.sex ==0 && sanwei">{{sanwei}}</text>
+					<text class="sanwei" v-if="options.sex ==1 && options.vehicle">{{options.vehicle}}</text>
+				</view>
+			</view>
+			<view class="message">
+				<text class="text">职业:{{options.vocation}}</text>
+				<text class="text">兴趣爱好:{{options.hobbystr}}</text>
+				<text class="text">空闲时间:{{options.freetime}}</text>
+				<text class="text">最近想去:{{options.travellocation}}</text>
+				<text class="text">喜欢类型:{{options.target}}</text>
+				<text class="text">喜爱的食物:{{options.food}}</text>
+			</view>
+			<text class="more" >更多资料</text>
+		</view>
+	</view>
+</template>
+
+<script>
+	import {
+		paramJson,
+		formatCity
+	} from '@/utils/param.js'
+	import cup from "@/common/cup.js"
+	export default {
+		props: {
+			options: {
+				type: Object,
+				default: function(e) {
+					return {}
+				}
+			}
+		},
+		computed:{
+			getSex(){
+				return this.options.sex == 1 ? "/static/icons/index/nan.png": "/static/icons/index/nv.png"
+			},
+			sanwei(){
+				if(this.options.sex == 0){
+					let str = ""
+					if (this.options.bust) str += `·${this.options.bust}`
+					if (this.options.waist) str += `/${this.options.waist}`
+					if (this.options.hips) str += `/${this.options.hips}`
+					if (this.options.cup) str += `/${this.options.cup}`
+					return str
+				}
+				return null
+			},
+			addr(){
+				let str = ""
+				if(this.options.city && this.options.city.length){
+					for(let i=0; i<1; i++){
+						let addr = formatCity(this.options.city[i])
+						if(addr.province && addr.city){
+							str += `${addr.city.label}/`
+						}
+					}
+				}
+				str=str.slice(0,str.length-1)
+				return str
+			}
+		},
+		methods: {
+			toUserInfo(userid){
+				uni.navigateTo({
+				    url: `/pages/user/info?userid=${userid}`
+				});
+			},
+		}
+	}
+</script>
+
+<style scoped>
+
+	.recom-item {
+		flex-direction: row;
+		width: 750rpx;
+		padding: 0 30rpx;
+		margin-bottom: 20px;
+	}
+	.photo-img{
+		width: 300rpx;
+		height: 450rpx;
+		border-top-left-radius: 16rpx;
+		border-bottom-left-radius: 16rpx;
+	}
+	.info{
+		width: 390rpx;
+		height: 450rpx;
+		background-color: white;
+		border-top-right-radius: 16rpx;
+		border-bottom-right-radius: 16rpx;
+		padding-top: 10px;
+		padding-bottom: 10px;
+		padding-left: 15px;
+		padding-right: 15px;
+		flex-direction: column;
+		justify-content: space-between;
+	}
+	.title-content{
+		flex-direction: column;
+		border-bottom-width: 1px;
+		border-bottom-color: #e6e6e6;
+		border-bottom-style:dotted;
+		padding-bottom: 10rpx;
+	}
+	.title{
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+		padding-bottom: 3px;
+	}
+	.name{
+		color: #555555;
+		font-size: 30rpx;
+		font-weight: bold;
+		overflow: hidden;
+		text-overflow:ellipsis;  
+		/* #ifndef APP-PLUS */
+		white-space: nowrap;
+		width: 50%;
+		/* #endif */
+		flex: 1;
+		/* #ifdef APP-PLUS */
+		lines:1;
+		/* #endif */
+	}
+	.addr-content{
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		justify-content: flex-end;
+		flex: 1;
+		/* #ifndef APP-PLUS */
+		width: 50%;
+		/* #endif */
+	}
+	.addr-icon{
+		width: 17rpx;
+		height: 20rpx;
+		margin-top: -2rpx;
+		transform: translateX(5rpx);
+	}
+	.addr{
+		font-size: 26rpx;
+		color: #e1b893;
+		lines:1;
+		text-align: right;
+		overflow: hidden;
+		text-overflow:ellipsis;  
+		/* #ifndef APP-PLUS */
+		white-space: nowrap;
+		/* #endif */
+		/* #ifdef APP-PLUS */
+		text-overflow:ellipsis;
+		/* #endif */
+	}
+	.age-content,.height-content{
+		flex-direction: row;
+		padding-bottom: 3px;
+		align-items: center;
+	}
+	.age,.height,.weight,.sanwei,.constellation{
+		font-size: 24rpx;
+		color: #555555;
+	}
+	.age,.constellation{
+		font-size: 26rpx;
+	}
+	.message{
+		flex-direction: column;
+	}
+	.hobby-group{
+		display: flex;
+		flex-direction: row;
+	}
+	.text,.hobby-label,.hobby-value{
+		font-size: 28rpx;
+		color: #898989;
+		padding: 2px;
+	}
+	.hobby-label{
+		width: 200rpx;
+	}
+	.hobby-value{
+		overflow: hidden;
+		text-overflow:ellipsis;  
+		/* #ifndef APP-PLUS */
+		white-space: nowrap;
+		/* #endif */
+		/* #ifdef APP-PLUS */
+		text-overflow:ellipsis;
+		/* #endif */
+	}
+	.more{
+		color: #e1b893;
+		font-size: 28rpx;
+		font-weight: bold;
+		text-decoration: underline;
+	}
+	.age-sex{
+		width: 15rpx;
+		margin-right: 5rpx;
+	}
+</style>

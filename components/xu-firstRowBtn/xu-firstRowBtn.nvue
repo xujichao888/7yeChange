@@ -1,0 +1,40 @@
+<template>
+	<view class="first-row-container" :class="{active:isActive}">
+		<image class="img" v-if="hasIcon" src="/static/icon/lanxin.png" mode="widthFix"></image>
+		<d-text color-custom="#00DCDF" :text="text" line-height="50rpx"></d-text>
+	</view>
+</template>
+
+<script>
+	export default {
+		
+		props:{
+			text:String,
+			hasIcon:Boolean,
+			isActive:Boolean
+		}
+	}
+</script>
+
+<style scoped>
+	.first-row-container{
+		padding: 5rpx 30rpx;
+		background-color: #062525;
+		border-radius: 60rpx;
+		border-color: #008284;
+		border-width: 4rpx;
+		border-style: solid;
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+		margin-right: 10rpx;
+	}
+	.img{
+		width:24rpx;
+		margin-right: 5rpx;
+	}
+	.active{
+		background-color: #005b5c;
+		border-color: #005b5c;
+	}
+</style>

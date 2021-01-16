@@ -1,0 +1,298 @@
+<template>
+	<view class="">
+		<uni-nav-bar background-color="rgb(248, 248, 248)" status-bar :border="false" @clickLeft="back" @clickRight="toUserList">
+			<uni-icons slot="left" type="arrowleft" size="30" />
+			<view class="uni-navbar__header-container-inner">
+				<text class="nav-text">选择</text>
+			</view>
+			<image slot="right" class="icon-btn" src="/static/icons/index/comments@3x.png"></image>
+		</uni-nav-bar>
+		<list class="scroll-v list" enableBackToTop="true" scroll-y loadmoreoffset="15">
+			<cell>
+				<text class="tips">最近聊天</text>
+				<view class="cell-content" v-for="msg in user_list" :key="msg.id" @click="share(message_list[msg.id].userInfo)">
+					<image class="avatar" :src="message_list[msg.id].userInfo.avatar"></image>
+					<text class="name">{{message_list[msg.id].userInfo.nickname}}</text>
+				</view>
+			</cell>
+		</list>
+		<uni-popup ref="popupForward" type="dialog" :maskClick="false">
+			<uni-popup-forward title="发送给:" :user="shareUser" :img="shareImg" @confirm="confirm"></uni-popup-forward>
+		</uni-popup>
+	</view>
+</template>
+
+<script>
+	import {
+		screen_user,
+		get_user_info,
+		push_message,
+	} from "@/common/http.nvue.api.js"
+	import uniPopupForward from '@/components/uni-popup/uni-popup-forward.vue'
+	import uniNavBar from '@/components/nav-bar/uni-nav-bar/uni-nav-bar.vue'
+	import {
+		mapGetters,
+		mapMutations
+	} from 'vuex'
+	export default {
+		components: {
+			uniNavBar,
+			uniPopupForward
+		},
+		computed: {
+			...mapGetters([
+				'message_list',
+				'userInfo',
+				'txIm'
+			]),
+			user_list() {
+				let arr = []
+				for (let attr in this.message_list) {
+					let msg = this.message_list[attr].message
+					let date = ""
+					if (msg.length) {
+						date = msg[msg.length - 1].date
+					}
+					arr.push({
+						id: attr,
+						date
+					})
+				}
+				return arr.sort(this.sortBy("date", false))
+			}
+		},
+		watch: {
+
+		},
+		data() {
+			return {
+				isShow: true,
+				shareUser: {},
+				sendData: {}
+			}
+		},
+		onShow() {
+			setTimeout(() => {
+				this.isShow = true
+			}, 500)
+		},
+		onLoad(options) {
+			this.shareImg = options.img
+			uni.$on("sendPeerMessage", this.sendPeerMessage)
+		},
+		onHide() {
+			this.isShow = false
+		},
+		onUnload() {
+			uni.$off('sendPeerMessage', this.sendPeerMessage)
+		},
+		methods: {
+			...mapMutations([
+				"pushSendMessage",
+				"addMessage",
+				"chageSendMesState",
+				"setCurrentUser"
+			]),
+			sendPeerMessage(res) {
+				if (!this.isShow) return
+				if (res.code == 0 || res.code == 4) {
+					if (res.code == 4) this.pushMessage(this.sendData)
+					uni.hideLoading()
+					uni.navigateBack({
+						delta: 1
+					})
+				} else {
+					this.chageSendMesState()
+					console.log("发送失败")
+				}
+			},
+			pushMessage(data) {
+				if (!data.message) return
+				let targetUsrId = this.shareUser.id
+				get_user_info({
+					userid: targetUsrId
+				}).then(res => {
+					let title = res.data.nickname
+					let cid = res.data.uinpush.cid
+					let platform = res.data.uinpush.phonemodel
+					if (cid && platform && this.userInfo.uinpush.cid != cid) {
+						push_message({
+							body: data.message.type == 0 ? data.message.msg : '图片',
+							title,
+							cid,
+							click_type: "none",
+							pushType: platform,
+							url: ""
+						}).then(res => {
+							if (res.code == 0) {
+								console.log(res, "推送成功")
+							} else {
+								console.log(res, "推送失败")
+							}
+						}).catch(err => {
+							console.log(err, "推送失败")
+						})
+					}
+				}).catch(err => {
+					console.error(err)
+				})
+
+			},
+			share(user) {
+				this.shareUser = {
+					...user,
+					id: user.userid,
+					avatarimg: user.avatar
+				}
+				this.$refs.popupForward.open()
+			},
+			confirm() {
+				if (!this.isShow) return
+				uni.showLoading({
+					title: "转发中..."
+				})
+				this.$refs.popupForward.close()
+
+				plus.io.getImageInfo({
+					src: this.shareImg,
+					success: res => {
+						if (this.message_list[this.shareUser.userid]) {
+							this.setCurrentUser(this.message_list[this.shareUser.userid])
+						} else {
+							this.setCurrentUser({
+								userInfo: {
+									userid: this.shareUser.userid,
+									nickname: this.shareUser.nickname,
+									avatar: this.shareUser.avatar
+								},
+								message: []
+							})
+						}
+
+						uni.saveFile({
+							tempFilePath: res.path,
+							success: (result) => {
+								var savedFilePath = result.savedFilePath;
+								this.sendData = {
+									img: `file://${plus.io.convertLocalFileSystemURL(savedFilePath)}`,
+									width: res.width
+								}
+								this.txIm.sendImage(plus.io.convertLocalFileSystemURL(res.path), this.shareUser.userid + '', true, true,
+									true)
+
+								this.sendData = {
+									userid: this.shareUser.userid,
+									userInfo: {
+										userid: this.shareUser.userid,
+										nickname: this.shareUser.nickname,
+										avatar: this.shareUser.avatar,
+									},
+									message: {
+										date: new Date().getTime(),
+										id: new Date().getTime() + '' + this.userInfo.id,
+										type: 1,
+										isSelf: true,
+										isRead: true,
+										img: this.sendData.img,
+										width: this.sendData.width,
+										isSelf: true,
+										sendErr: false
+									}
+								}
+								this.addMessage(this.sendData)
+								this.pushSendMessage({
+									userid: this.sendData.userid,
+									mid: this.sendData.message.id
+								})
+							}
+						});
+					}
+				})
+			},
+			sortBy(attr, rev) {
+				//第二个参数没有传递 默认升序排列
+				if (rev == undefined) {
+					rev = 1;
+				} else {
+					rev = (rev) ? 1 : -1;
+				}
+
+				return function(a, b) {
+					a = a[attr];
+					b = b[attr];
+					if (a < b) {
+						return rev * -1;
+					}
+					if (a > b) {
+						return rev * 1;
+					}
+					return 0;
+				}
+			},
+			back() {
+				uni.navigateBack({
+					delta: 1
+				})
+			},
+			toUserList() {
+				uni.navigateTo({
+					url: `/pages/user/userList?img=${this.shareImg}`
+				});
+			}
+		}
+	}
+</script>
+
+<style scoped>
+	.cell-content {
+		padding: 10rpx 30rpx;
+		flex: 1;
+		background-color: white;
+		border-radius: 10rpx;
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		margin-bottom: 10rpx;
+	}
+
+	.avatar {
+		width: 90rpx;
+		height: 90rpx;
+		border-radius: 50%;
+		flex-shrink: 0;
+	}
+
+	.name {
+		font-size: 30rpx;
+		padding-left: 10px;
+	}
+
+	.tips {
+		font-size: 26rpx;
+		color: #999999;
+		padding-left: 30rpx;
+		padding-bottom: 10rpx;
+	}
+
+	.nav-title {
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+	}
+
+	.icon-btn {
+		width: 38rpx;
+		height: 36rpx;
+		margin-left: 30rpx;
+	}
+
+	.uni-navbar__header-container-inner {
+		/* #ifndef APP-NVUE */
+		display: flex;
+		/* #endif */
+		flex: 1;
+		align-items: center;
+		justify-content: center;
+		font-size: $uni-font-size-base;
+	}
+</style>
