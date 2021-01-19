@@ -9,7 +9,6 @@
 				</view>
 				<view class="right">
 					<xu-buleHeartOrPinkHeart :sex="item.sex" />
-					<text class="idx">{{item.income?item.income:0}}</text>
 				</view>
 			</cell>
 			<cell class="load-more-box">

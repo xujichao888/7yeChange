@@ -31,13 +31,13 @@
 				<text class="sort-btn-text">排行榜</text>
 			</view> -->
 			<!-- 房主的座位 -->
-			<xu-roomseat :isMaster="true" :renderJson="masterSeat" @handleClick="handlecheckOptions" seat="0" />
+			<xu-roomseat :isMaster="true" :renderJson="masterSeat" @handleClick="handlecheckOptions" seat="0" :speak="marserSpeak"/>
 
 		</view>
 		<!-- 其他上麦的座位 -->
 		<view class="seat-box">
 			<view class="seat-box-block" v-for="(val,key,i) in micSeatJson" :key="key">
-				<xu-roomseat :idx="i" :renderJson="val" :seat="key" @handleClick="handlecheckOptions" />
+				<xu-roomseat :idx="i" :renderJson="val" :seat="key" @handleClick="handlecheckOptions" :speak="micSeatSpeak[key]" @changeAnimateState="changeAnimateState"/>
 			</view>
 		</view>
 		<!-- 底部的条 -->
@@ -59,7 +59,7 @@
 			<!-- 单聊消息按钮 -->
 			<!-- <xu-bottombarCircle :rtcAndRtm='rtcAndRtm' iconUrl="/static/icon/peerMsg.png" @bottomCircleIconCallBack="toggleMessagePopup" /> -->
 			<!-- 礼物的按钮 -->
-		<!-- 	<xu-bottombarCircle iconUrl="/static/icon/gift.png" @bottomCircleIconCallBack="toggleGiftPopup" /> -->
+			<!-- <xu-bottombarCircle iconUrl="/static/icon/gift.png" @bottomCircleIconCallBack="toggleGiftPopup" /> -->
 		</view>
 		<!-- 群聊 -->
 		<xu-channelTalk :rpxExchangePx="rpxExchangePx" ref="manyTalk" @checkUser="checkOtherUser" />
@@ -218,6 +218,7 @@
 			return {
 				isMasterCome: false, //判断进来的是不是房主
 				masterSeat: {}, //房主的座位
+				marserSpeak:{seat:'0',isSpeak:false},//房主是否说话了
 				micSeatJson: { //底部座位
 					"1": {},
 					"2": {},
@@ -227,6 +228,16 @@
 					"32": {},
 					"64": {},
 					"128": {}
+				},
+				micSeatSpeak: { //底部座位
+					"1": {isSpeak:false},
+					"2": {isSpeak:false},
+					"4": {isSpeak:false},
+					"8": {isSpeak:false},
+					"16": {isSpeak:false},
+					"32": {isSpeak:false},
+					"64": {isSpeak:false},
+					"128": {isSpeak:false}
 				},
 				imageHeight: 0, //屏幕的高度
 				roomInfo: { //房间的具体信息，
@@ -341,14 +352,42 @@
 		},
 		methods: {
 			goBackToParty(){ //返回页面但是不关闭
+				// rtcModule.enableAudioVolumeIndication({"interval": 0, "smooth": 3, "report_vad": true})
+				// this.$store.state.fuck = rtcModule;
+				
 				uni.navigateBack({
 					delta:1
 				})
 			},
-			sendCardOUt(json){
-				rtcModule.logout();
-				rtcModule.doLeaveChannel();
-				this.$store.state.manyTalkRenderArr.splice(0)
+			changeAnimateState(seat){
+				console.log(seat)
+				this.micSeatSpeak[seat].isSpeak = false;
+			},
+			leaveRtmRoom(){ //有回调的离开房间
+				return new Promise((resolve,reject)=>{
+					rtcModule.logoutWithCallback((res)=>{
+						resolve(res)
+					})
+				})
+			},
+			leaveRtcRoom(){
+				return new Promise((resolve,reject)=>{
+					console.log(rtcModule)
+					rtcModule.leaveChannelWithCallback((res)=>{
+						resolve(res)
+					})
+				})
+			},
+			async sendCardOUt(json){ //发卡片
+				let rtmResult = await this.leaveRtmRoom();
+				let rtcResult = await this.leaveRtcRoom()
+				let {msg} = JSON.parse(rtmResult);
+				let {method} = JSON.parse(rtcResult);
+				if(msg =='sucess' && method =='onLeaveChannelSuccess'){
+					this.$store.state.manyTalkRenderArr.splice(0);
+					this.$store.state.isJoinChannelNum = -1;
+					uni.$emit('roomSendMessagem',json)
+				}		
 			},
 			hanldleAnimate(){ //调用子组件的方法
 				this.$nextTick(()=>{
@@ -660,7 +699,8 @@
 					let result = await Promise.all([this.loadRoomInfo(), this.getUserInfo(), this
 						.getAwesomePerson(), this.getRtmToken(), this.getRTCtoken()
 					])
-
+					console.log('我进来了吗')
+					console.log()
 					that.rtmLogin()
 					that.initRTC()
 				} catch (err) {
@@ -1004,13 +1044,14 @@
 				console.log(that.RoomId)
 				console.log('RTCtestDone')
 				rtcModule.joinVoiceChannel({
-					appid: '29ea0187cc1e4b27badd3155114722ca', //字符串类型
+					appid: '69847929eee34243b6c3f69b57f63887', //字符串类型
 					token: that.rtcToken, //字符串类型
 					role, //role填整形 1或者2  ，1代表主播，2代表观众
 					uid: parseInt(that.$store.state.userMsg.id), //这里的uid是整形
 					roomName: that.RoomId.toString(),
 				}, (ret) => {
 					let result = JSON.parse(ret);
+					
 					if (result.method == 'onPermission' && result.permission == 1) { //用户已经授权
 						that.initRTC()
 					}
@@ -1021,9 +1062,57 @@
 						})
 					}
 					if (result.method == "onAudioVolumeIndication") { //有人在说话
+						
+						let {speakerInfos} = result;
+						console.log(speakerInfos)
+						
+						
+						let arr = JSON.parse(speakerInfos);
+						if(arr.length==0){return false}
+						 for(let i=0;i<arr.length;i++){
+							 let {uid,volume} = arr[i];
+								if(uid==0){//判断我自己的声音
+									if(this.seat == '0'){  //判断我自己是不是房主
+										if(volume>10){//
+											this.marserSpeak = {seat:'0',isSpeak:true};
+										}
+									}else{
+										if(volume>10){//
+											this.micSeatSpeak[this.seat].isSpeak = true;
+											console.log(this.micSeatSpeak[this.seat])
+										}
+									}
+								}else{
+									if(this.masterSeat.id && uid == this.masterSeat.id){
+										if(volume>10){//
+											this.marserSpeak = {seat:'0',isSpeak:true};
+										}
+									}else{
+										console.log('其他麦说话了')
+										if(volume>10){//
+											// this.micSeatSpeak[this.seat].isSpeak = true;
+											for(let key in this.micSeatJson){
+												if(this.micSeatJson[key].id == uid){
+													this.micSeatSpeak[key].isSpeak = true;
+												}
+											}
+										}
+									}
+								}
 
+							
+						 }
+						
 					} else {
 						console.log('RTC的回调', ret)
+						let {method} =  result;
+						if(method == "onJoinChannelSuccess"){
+							rtcModule.enableAudioVolumeIndication({"interval": 1100, "smooth": 3, "report_vad": true})
+							let {channel} = result;
+							console.log(channel)
+							this.$store.state.isJoinChannelNum = channel;
+							console.log('我被赋值成功了吗',this.$store.state.isJoinChannelNum)
+						}
 					}
 				})
 
@@ -1186,6 +1275,7 @@
 						rtcModule.doConfigEngine(2)
 						this.upMicTextIsShow = true; //显示上麦文字
 						this.$refs.selectPopups.close()
+						this.seat = -1;
 					} else {
 						this.$refs.masterHandle.close()
 					}
@@ -1661,8 +1751,9 @@
 
 	.seat-box-block {
 		width: 160rpx;
-		height: 225rpx;
+		height: 205rpx;
 		align-items: center;
+		justify-content: center;
 	}
 
 	.bottom-bar {

@@ -59,7 +59,7 @@
 					query.boundingClientRect(data => {
 						if(Math.floor( data.height)>this.heightPx){
 							console.log('开始整了')
-							 this.scrollTop = Math.floor( data.height)
+							 this.scrollTop = Math.floor( data.height)+Math.random()
 						}
 					}).exec();
 				})

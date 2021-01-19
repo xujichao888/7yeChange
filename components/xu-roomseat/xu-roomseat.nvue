@@ -1,17 +1,18 @@
 <template>
-	<view class="box" style="position: relative;" @click="handleClick">
+	<view class="box" style="position: relative;" @click="handleClick" :class="{boxMagins:isMaster}">
 		<text v-if="!renderJson.islock" class="seat-num" style="position: absolute;">{{isMaster?'':idx+1}}</text>
+		<view class="animate" ref= 'animate' style="position: absolute;" v-if="renderJson.id"></view>
 		<image v-if="renderJson.islock" style="position: absolute; left:50%;  top: 50%; width: 35rpx; height: 47rpx;margin-top: 23.5rpx;" src="/static/icon/lock.png" mode="widthFix"></image>
 		<image v-if="renderJson.avatar" class="avatar"  :src="renderJson.avatar" mode="aspectFill"></image>
 		<image v-if="!renderJson.avatar" class="kongwei" src="/static/icon/kongwei.png" mode="widthFix"></image>
 		<text v-if="!renderJson.id && isMaster" class="master-text">房主</text>
-		<text v-if="renderJson.nickname" class="master-text">{{renderJson.nickname}}</text>
-		<view class="sex-income" v-if="renderJson.id">
+		<text v-if="renderJson.nickname" class="master-text">{{renderJson.nickname}}{{speak.isSpeak}}</text>
+	<!-- 	<view class="sex-income" v-if="renderJson.id">
 			<image class="sex-icon" v-if="renderJson.sex==1" src="/static/icon/lanxin.png" mode="widthFix"></image>
 			<image class="sex-icon" v-else src="/static/icon/fenxin@3x.png" mode="widthFix"></image>
 			<text class="income-num">{{renderJson.income?renderJson.income:0}}</text>
-		</view>
-		<view class="mic-state" v-if="renderJson.id" :class="{masterMic:ture}" style="position: absolute; left: 70rpx; top: 70rpx;">
+		</view> -->
+		<view class="mic-state" v-if="renderJson.id" style="position: absolute; " :class="{masterMic:isMaster}"> <!--  -->
 			<image class="mic-icon" v-if="renderJson.micState===2" src="/static/icon/closeMic.png" mode="widthFix"></image>
 			<image class="mic-icon" v-if="renderJson.micState===1" src="/static/icon/openMic.png" mode="widthFix"></image>
 		</view>
@@ -20,6 +21,7 @@
 </template>
 
 <script>
+	const Binding = uni.requireNativePlugin('bindingx');
 	export default {
 		props:{
 			idx:Number,//座位的号码
@@ -27,6 +29,10 @@
 			isMaster:{//是不是房主
 				type:Boolean,
 				default:false
+			},
+			speak:{
+				type:Object,
+				default:{}
 			},
 			renderJson:{//渲染的数据
 				type:Object,
@@ -46,11 +52,77 @@
 			
 			}
 		},
+		watch:{
+				speak: {
+				    handler(newV, OldV) {
+				      let {isSpeak} = newV
+					  if(isSpeak){
+					  	this.renderAnimate()
+					  }
+				    },
+				    // 代表在wacth里声明了firstName这个方法之后立即先去执行handler方法
+				   deep: true
+			   }
+		},
 		methods:{
 			handleClick(){
-			
 				this.$emit('handleClick',{jsons:this.renderJson,seat:this.seat})
-				
+			},
+			async renderAnimate() {
+				let stepScale = await this.BindingxAnimate(this.getEl(this.$refs.animate),'t>910', [
+					{
+						element: this.getEl(this.$refs.animate),
+						property: 'transform.scale',
+						expression:'0 + (1.5-0)*(min(t,1000)/910)'
+					},
+					{
+						element: this.getEl(this.$refs.animate),
+						property: 'opacity',
+						expression:'1.2-t/910'
+					}
+				])
+				let step4= await this.BindingxAnimate(this.getEl(this.$refs.animate),'t>10', [
+					{
+						element: this.getEl(this.$refs.animate),
+						property: 'transform.scale',
+						expression:'easeOutElastic(t,0,6,1000)'
+					},
+					{
+						element: this.getEl(this.$refs.animate),
+						property: 'opacity',
+						expression:'0+t/10'
+					}
+				])
+				this.$emit('changeAnimateState',this.seat)
+			},
+			getEl: function(el) {
+				if (typeof el === 'string' || typeof el === 'number') return el;
+				if (WXEnvironment) {
+					return el.ref;
+				} else {
+					return el instanceof HTMLElement ? el : el.$el;
+				}
+			},
+			BindingxAnimate(token, animateTimeStr, propsArr) { // valueName,expression
+				let main_btn = token;
+				return new Promise((resolve, reject) => {
+					Binding.bind({
+						eventType: 'timing', //动画的模式 timing 表示是时间动画
+						exitExpression: animateTimeStr, //动画的时间
+						props: propsArr
+					}, function(res) {
+						let {
+							state
+						} = res;
+						if (state == 'exit') {
+							Binding.unbind({
+								token: main_btn.token,
+								eventType: 'timing'
+							})
+							resolve('done')
+						}
+					})
+				})
 			}
 		}
 	
@@ -59,10 +131,13 @@
 
 <style scoped>
 	.box{
-		width:110rpx;
-		height: 194rpx;
+		width: 160rpx;
+		height: 205rpx;
 		align-items: center;
-		margin-bottom: 40rpx;
+		padding-top: 60rpx;
+	}
+	.boxMagins{
+		padding-top: 30rpx;
 	}
 	.kongwei{
 		width: 110rpx;
@@ -91,19 +166,26 @@
 		border-width: 3rpx;
 		border-style: solid;
 		border-color: #7060dc;
+		background-color: #473D4B;
+	}
+	.animate{
+		width: 107rpx;
+		height: 107rpx;
+		background-color: #F58220;
+		border-radius: 107rpx;
 	}
 	.mic-state{
 		width: 40rpx;
 		height: 40rpx;
+		left: 90rpx;
+		top: 120rpx;
 	}
 	.mic-icon{
 		width: 40rpx;
 		height: 40rpx;
 	}
 	.masterMic{
-		position: fixed;
-		top: 260rpx;
-		left: 410rpx;
+		top: 100rpx;
 	}
 	.sex-income{
 		margin-top: 5rpx;

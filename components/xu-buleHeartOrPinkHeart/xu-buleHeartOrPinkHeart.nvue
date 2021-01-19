@@ -1,7 +1,8 @@
 <template>
 	<view class="bule-or-pink">
-		<image v-if="sex===1" class="sex-icon" src="/static/icon/lanxin.png" mode="widthFix"></image>
-		<image v-else class="sex-icon" src="/static/icon/fenxin@3x.png" mode="widthFix"></image>
+		<image v-if="sex===1" class="sex-icon" src="/static/icon/man_icon.png" mode="widthFix"></image>
+		
+		<image v-else class="sex-icon" src="/static/icon/woman_icon.png" mode="widthFix"></image>
 	</view>
 </template>
 

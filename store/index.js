@@ -55,6 +55,7 @@ const store = new Vuex.Store({
 		oneTalkRenderArr:[],//单聊页面渲染数组
 		rpxExchangePxs:0,
 		talkNowUserId:-1,//用户正在聊天的人
+		isJoinChannelNum:-1,//
 		
 		// 如果上面从本地获取的lifeData对象下有对应的属性，就赋值给state中对应的变量
 		// 加上vuex_前缀，是防止变量名冲突，也让人一目了然
