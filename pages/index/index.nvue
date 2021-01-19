@@ -278,6 +278,7 @@
 			this.setPrevPage("/pages/index/index")
 		},
 		onUnload() {
+			console.log('我被卸载了吗')
 			uni.$off('roomSendMessagem', this.roomSendMessagem)
 			uni.$off('inviteInfo', this.toUsetInfo)
 			uni.$off('feedCommentOn', this.feedCommentHandel)
@@ -304,6 +305,7 @@
 				'pushSendMessage'
 			]),
 			roomSendMessagem(persion){
+				console.log(persion)
 				if (this.userInfo.type == 0) {
 					this.setServiceInfo()
 					this.sendData = {

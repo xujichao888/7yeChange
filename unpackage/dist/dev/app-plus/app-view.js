@@ -142,7 +142,6 @@ if (uni.restoreGlobal) {
 
 __definePage('pages/me/me', function () {return Vue.extend(__webpack_require__(/*! pages/me/me.vue?mpType=page */ 2).default);});
 __definePage('pages/attestation/index', function () {return Vue.extend(__webpack_require__(/*! pages/attestation/index.vue?mpType=page */ 86).default);});
-__definePage('pages/authority/index', function () {return Vue.extend(__webpack_require__(!(function webpackMissingModule() { var e = new Error("Cannot find module 'pages/authority/index.vue?mpType=page'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())).default);});
 
 
 __definePage('pages/user/headSelect', function () {return Vue.extend(__webpack_require__(/*! pages/user/headSelect.vue?mpType=page */ 102).default);});

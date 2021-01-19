@@ -139,8 +139,8 @@
 					sex: this.renderJson.sex,
 					nickname: this.renderJson.nickname,
 					addr: this.renderJson.regionName?this.renderJson.regionName:'',
-					age: this.renderJson.calculateAge,
-				    constellation: this.renderJson.star
+					age: this.calculateAge,
+				    constellation: this.star
 				})
 			
 				// this.$emit('talkOnePop',this.renderJson)

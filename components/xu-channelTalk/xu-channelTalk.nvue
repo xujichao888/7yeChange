@@ -40,17 +40,16 @@
 			getManyTalkRander(){
 				this.heightPx =this.$store.state.rpxExchangePxs * 300
 				if(this.canGoBottom){
+					
 					this.gotoBottom()
 				}else{
 					this.num++
 				}
-				
 				return this.$store.state.manyTalkRenderArr
 			}
 		},
 		methods:{
 			gotoBottom(){
-				
 				this.$nextTick(()=>{
 					console.log(123)
 					console.log(this.heightPx)
@@ -59,7 +58,7 @@
 					query.boundingClientRect(data => {
 						if(Math.floor( data.height)>this.heightPx){
 							console.log('开始整了')
-							 this.scrollTop = Math.floor( data.height)+Math.random()
+							  this.scrollTop = Math.floor(data.height)-this.heightPx+Math.random()
 						}
 					}).exec();
 				})
