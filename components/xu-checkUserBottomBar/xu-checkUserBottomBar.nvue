@@ -1,6 +1,6 @@
 <template>
 	<view class="bar" :class="{leftborder:hasRightBorder}" @click="handleClick">
-		<view class="centers">
+		<view class="centers" v-if="isShowContent">
 			<image :style="{width:imgWidth}" class="imgs" :src="IconImgUrl" mode="widthFix"></image>
 			<text class="texts">{{text}}</text>
 		</view>
@@ -17,7 +17,11 @@
 			IconImgUrl:String,
 			text:String,
 			type:String,
-			imgWidth:String
+			imgWidth:String,
+			isShowContent:{
+				type:Boolean,
+				default:true
+			}
 		},
 		methods:{
 			handleClick(){

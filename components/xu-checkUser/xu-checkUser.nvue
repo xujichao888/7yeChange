@@ -50,10 +50,11 @@
 				/> -->
 				<xu-checkUserBottomBar 
 					IconImgUrl="/static/icon/sixin@3x.png" 
-					text="联系TA" 
+					text="转发给客服" 
 					imgWidth="60rpx"
 					type="3"
 					@clickHandle ="talkOnePop"
+					:isShowContent="isShowSendCard"
 				/>
 			</view>
 		</view>
@@ -79,6 +80,9 @@
 			}
 		},
 		computed: {
+			isShowSendCard(){
+				return this.renderJson && this.renderJson.type?false:true
+			},
 			calculateAge() {
 				return (this.renderJson && this.renderJson.birthday) && new Date().getFullYear() - parseInt(this.renderJson.birthday
 					.substr(0, 4));

@@ -3,7 +3,7 @@
 		  <list class="list-box">
 		    <!-- 注意事项: 不能使用 index 作为 key 的唯一标识 -->
 		    <cell class="cells">
-				<d-text size="36" :text="text" color-custom="#fff"></d-text>
+				<d-text size="24" :text="text" color-custom="#fff"></d-text>
 		    </cell>
 		  </list>
 		

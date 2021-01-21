@@ -1,7 +1,7 @@
 <template>
 	<view class="first-row-container" :class="{active:isActive}">
 		<image class="img" v-if="hasIcon" src="/static/icon/lanxin.png" mode="widthFix"></image>
-		<d-text color-custom="#00DCDF" :text="text" line-height="50rpx"></d-text>
+		<d-text color-custom="#00DCDF" :text="text" line-height="50rpx" size ="24"></d-text>
 	</view>
 </template>
 

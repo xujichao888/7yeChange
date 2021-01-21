@@ -53,7 +53,7 @@
 				<view class="manyPeerTalk-icon-box">
 					<image class="manyPeerTalk-icon" src="/static/icon/manyPeerTalk.png" mode="widthFix"></image>
 				</view>
-				<input class="manyPeerTalk-input" type="text" placeholder="聊一下....." placeholder-style="color:#fff" @focus="changeBottomState"
+				<input class="manyPeerTalk-input" type="text" placeholder="聊一下....." placeholder-style="color:#fff;font-size:12rpx" @focus="changeBottomState"
 				 @blur="changeBottomState" :auto-blur="true" @confirm="confirmManyTalk" v-model="manyTaleValue" />
 			</view>
 			<!-- 上麦按钮 -->
@@ -64,7 +64,7 @@
 			<!-- <xu-bottombarCircle iconUrl="/static/icon/gift.png" @bottomCircleIconCallBack="toggleGiftPopup" /> -->
 		</view>
 		<!-- 群聊 -->
-		<xu-channelTalk :rpxExchangePx="rpxExchangePx" ref="manyTalk" @checkUser="checkOtherUser" />
+		<xu-channelTalk :rpxExchangePx="rpxExchangePx" ref="manyTalk" @checkUser="checkOtherUser" :windowHeight="imageHeight" />
 
 		<!-- 公告弹出 -->
 		<d-popup direction="bottom" ref="publicMsgPop">
@@ -284,7 +284,8 @@
 				TalkOneMsgByUserMsg:{},
 				notReadNum:0,//未读消息
 				hitRoomid:-1,//举报的房间Id
-				hitUser:-1,//举报的userid
+				hitUser:-1,//举报的userid,
+				isSendCard:false,//防止重复点击
 			}
 		},
 		onBackPress() { //
@@ -365,7 +366,6 @@
 				}
 				rtcModule.logout();
 				rtcModule.doLeaveChannel();
-			
 				uni.switchTab({
 					url:'/pages/party/party'
 				})
@@ -390,8 +390,11 @@
 				})
 			},
 			async sendCardOUt(json){ //发卡片
+				if(this.isSendCard){return false};
+				this.isSendCard = true
 				uni.showLoading({
-					title:'加载中'
+					title:'加载中',
+					mask:true
 				})
 				let rtmResult = await this.leaveRtmRoom();
 				let rtcResult = await this.leaveRtcRoom()
@@ -406,6 +409,7 @@
 					this.$store.state.manyTalkRenderArr.splice(0);
 					this.$store.state.isJoinChannelNum = -1;
 					uni.$emit('roomSendMessagem',json)
+					this.isSendCard = false
 				}else{
 					uni.hideLoading();
 					uni.showToast({
@@ -760,7 +764,8 @@
 						msg
 					} = JSON.parse(ret)
 					if(method == 'onMemberLeft'){
-						this.roomInfo.usercount--
+						--this.roomInfo.usercount
+						this.$store.state.roomOnlineNum =this.roomInfo.usercount
 					}
 					// 登录的回调
 					if (method == 'login' && msg == "sucess") {
@@ -1078,7 +1083,7 @@
 					roomName: that.RoomId.toString(),
 				}, async (ret) => {
 					let result = JSON.parse(ret);
-					console.log(result)
+					//console.log(result)
 					if (result.method == 'onPermission' && result.permission == 1) { //用户已经授权
 						that.initRTC()
 					}
@@ -1654,11 +1659,14 @@
 				this.$refs.exchange.open()
 			},
 			async checkOtherUser(id) { //查看消息弹出
-
 				this.$refs.checkUserPopup.open();
 				let result = await ReqWebApi(getUserMsgPath + id, 'GET', {}, getToken(this), this, 'checkOtherUser', id, true);
 				console.log(result)
 				if (result.data.code == 0) {
+					let json = result.data.data;
+					if(id == this.$store.state.userMsg.id){
+						json.type = 3
+					}
 					this.$set(this.$data, 'checkUserJson', result.data.data)
 				}
 			},
@@ -1688,7 +1696,7 @@
 		height: 180rpx;
 		position: fixed;
 		flex-direction: row;
-		align-items: flex-end;
+		align-items: center;
 		justify-content: space-between;
 	}
 
@@ -1805,7 +1813,7 @@
 		padding: 0 25rpx;
 		height: 110rpx;
 		position: fixed;
-		bottom: 50rpx;
+		bottom: 20rpx;
 		flex-direction: row;
 		justify-content: space-between;
 		align-items: center;
@@ -1832,9 +1840,10 @@
 	}
 
 	.manyPeerTalk-input {
-		width: 400rpx;
+		width: 370rpx;
 		height: 80rpx;
 		color: #FFFFFF;
+		font-size: 24rpx;
 	}
 
 	.debugForFocus {
